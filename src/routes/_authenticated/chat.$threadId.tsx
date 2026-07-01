@@ -47,7 +47,7 @@ function ChatThread() {
     queryFn: () => load({ data: { threadId } }),
   });
 
-  if (initialQ.isLoading || initialQ.data === undefined) {
+  if (initialQ.isLoading || !initialQ.data) {
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground">
         Loading conversation…
@@ -59,7 +59,7 @@ function ChatThread() {
     <ChatWindow
       key={threadId}
       threadId={threadId}
-      initial={initialQ.data}
+      initial={initialQ.data as unknown as UIMessage[]}
       onSave={async (u, a) => {
         try {
           await save({ data: { threadId, userMessage: u, assistantMessage: a } });

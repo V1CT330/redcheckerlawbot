@@ -59,7 +59,7 @@ function ChatThread() {
     <ChatWindow
       key={threadId}
       threadId={threadId}
-      initial={initialQ.data as unknown as UIMessage[]}
+      initial={(initialQ.data.messages ?? []) as unknown as UIMessage[]}
       onSave={async (u, a) => {
         try {
           await save({ data: { threadId, userMessage: u, assistantMessage: a } });

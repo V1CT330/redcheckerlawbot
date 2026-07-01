@@ -52,14 +52,14 @@ export const renameThread = createServerFn({ method: "POST" })
 export const getThreadMessages = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ threadId: z.string().uuid() }).parse(d))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }): Promise<{ messages: unknown[] }> => {
     const { data: rows, error } = await context.supabase
       .from("messages")
       .select("message")
       .eq("thread_id", data.threadId)
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
-    return (rows ?? []).map((r) => r.message as unknown) as unknown[];
+    return { messages: (rows ?? []).map((r) => r.message) };
   });
 
 export const saveTurn = createServerFn({ method: "POST" })

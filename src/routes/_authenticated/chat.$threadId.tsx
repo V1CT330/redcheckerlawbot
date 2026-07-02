@@ -88,10 +88,32 @@ function ChatWindow({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const savedIdsRef = useRef<Set<string>>(new Set(initial.map((m) => m.id)));
 
+  const share = useServerFn(createShare);
+  const shareM = useMutation({
+    mutationFn: () => share({ data: { threadId } }),
+    onSuccess: async (r) => {
+      const url = `${window.location.origin}/share/${r.id}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success("Share link copied", { description: url });
+      } catch {
+        toast.success("Share link created", { description: url });
+      }
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not share"),
+  });
+
   const { messages, sendMessage, status } = useChat({
     id: threadId,
     messages: initial,
-    transport: new DefaultChatTransport({ api: "/api/chat" }),
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+      headers: async () => {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        return token ? { Authorization: `Bearer ${token}` } : {};
+      },
+    }),
     onError: (err) => toast.error(err.message || "Something went wrong"),
   });
 

@@ -147,6 +147,18 @@ function ChatWindow({
 
   return (
     <div className="flex h-full flex-col">
+      <div className="flex items-center justify-end border-b bg-background/50 px-3 py-1.5">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => shareM.mutate()}
+          disabled={shareM.isPending || messages.length === 0}
+          className="h-7 text-xs"
+        >
+          <Share2 className="mr-1.5 h-3.5 w-3.5" />
+          {shareM.isPending ? "Sharing…" : "Share"}
+        </Button>
+      </div>
       <Conversation className="flex-1">
         <ConversationContent className="mx-auto w-full max-w-3xl">
           {messages.length === 0 ? (

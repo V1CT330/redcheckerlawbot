@@ -1,9 +1,34 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { convertToModelMessages, streamText, type UIMessage } from "ai";
+import { createClient } from "@supabase/supabase-js";
+import { convertToModelMessages, streamText, tool, stepCountIs, type UIMessage } from "ai";
+import { z } from "zod";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
 import { MALAWI_LAW_SYSTEM_PROMPT } from "@/lib/malawi-law-prompt";
+import { MALAWI_LAW_DOMAINS } from "@/lib/malawi-law-links";
+import { embedTexts } from "@/lib/embed.server";
+import type { Database } from "@/integrations/supabase/types";
 
 type ChatRequestBody = { messages?: unknown };
+
+async function firecrawlSearch(query: string) {
+  const key = process.env.FIRECRAWL_API_KEY;
+  if (!key) return { results: [], error: "Web search unavailable (missing API key)." };
+  const scopedQuery = `${query} (${MALAWI_LAW_DOMAINS.map((d) => `site:${d}`).join(" OR ")})`;
+  const res = await fetch("https://api.firecrawl.dev/v2/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+    body: JSON.stringify({ query: scopedQuery, limit: 5 }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    return { results: [], error: `Search error ${res.status}: ${body.slice(0, 200)}` };
+  }
+  const json = (await res.json()) as { data?: { web?: Array<{ url: string; title: string; description?: string }> } };
+  const web = json.data?.web ?? [];
+  return {
+    results: web.map((r) => ({ title: r.title, url: r.url, description: r.description ?? "" })),
+  };
+}
 
 export const Route = createFileRoute("/api/chat")({
   server: {
@@ -13,24 +38,75 @@ export const Route = createFileRoute("/api/chat")({
         if (!Array.isArray(messages)) {
           return new Response("Messages are required", { status: 400 });
         }
-
         const key = process.env.LOVABLE_API_KEY;
-        if (!key) {
-          return new Response("Missing LOVABLE_API_KEY", { status: 500 });
-        }
+        if (!key) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
+
+        // Optional bearer token: enables doc_search scoped to caller
+        const authHeader = request.headers.get("authorization");
+        const userToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
         try {
           const gateway = createLovableAiGatewayProvider(key);
           const model = gateway("google/gemini-3-flash-preview");
+
+          const tools = {
+            search_malawi_law: tool({
+              description:
+                "Search the live web across MalawiLII, Malawi Government portals and official legal sites for statutes, cases or policies. Use this when the user asks about a specific Act, section, case, or recent development.",
+              inputSchema: z.object({
+                query: z.string().describe("Focused search query, e.g. 'Employment Act section 57 notice period'"),
+              }),
+              execute: async ({ query }) => firecrawlSearch(query),
+            }),
+            search_uploaded_documents: tool({
+              description:
+                "Semantic search over PDFs the signed-in user has uploaded (their private legal library). Use when the user references 'my document', 'the contract I uploaded', or otherwise asks about their own files.",
+              inputSchema: z.object({
+                query: z.string().describe("Question or keywords to look up in the user's uploaded documents."),
+                k: z.number().int().min(1).max(10).default(6),
+              }),
+              execute: async ({ query, k }) => {
+                if (!userToken) return { matches: [], note: "Sign in to search your uploaded documents." };
+                try {
+                  const [embedding] = await embedTexts([query]);
+                  const supabase = createClient<Database>(
+                    process.env.SUPABASE_URL!,
+                    process.env.SUPABASE_PUBLISHABLE_KEY!,
+                    {
+                      global: { headers: { Authorization: `Bearer ${userToken}` } },
+                      auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+                    },
+                  );
+                  const { data, error } = await supabase.rpc("match_document_chunks", {
+                    query_embedding: embedding as unknown as string,
+                    match_count: k,
+                  });
+                  if (error) return { matches: [], error: error.message };
+                  return {
+                    matches: (data ?? []).map((r: { title: string; content: string; similarity: number }) => ({
+                      document: r.title,
+                      snippet: r.content.slice(0, 800),
+                      similarity: Number(r.similarity.toFixed(3)),
+                    })),
+                  };
+                } catch (e) {
+                  return { matches: [], error: e instanceof Error ? e.message : "Search failed" };
+                }
+              },
+            }),
+          };
+
           const result = streamText({
             model,
-            system: MALAWI_LAW_SYSTEM_PROMPT,
+            system:
+              MALAWI_LAW_SYSTEM_PROMPT +
+              "\n\n## Tools\nYou have two tools:\n- `search_malawi_law` for the live web (MalawiLII, gov.mw). Use it when the user asks about a specific Act, section, case or recent development — then cite the URL you found.\n- `search_uploaded_documents` for the user's own uploaded PDFs. Use it whenever they reference their document/contract/upload; quote the snippet and name the document.\n\nAlways prefer tool-grounded answers over memory when a fact is fetchable.",
             messages: await convertToModelMessages(messages as UIMessage[]),
+            tools,
+            stopWhen: stepCountIs(6),
           });
 
-          return result.toUIMessageStreamResponse({
-            originalMessages: messages as UIMessage[],
-          });
+          return result.toUIMessageStreamResponse({ originalMessages: messages as UIMessage[] });
         } catch (err) {
           console.error("[chat] streamText error", err);
           const status =

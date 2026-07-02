@@ -2,9 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useEffect, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getThreadMessages, saveTurn } from "@/lib/threads.functions";
+import { createShare } from "@/lib/share.functions";
 import {
   Conversation,
   ConversationContent,
@@ -20,9 +21,11 @@ import {
   type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input";
 import { Shimmer } from "@/components/ai-elements/shimmer";
-import { Scale } from "lucide-react";
+import { Scale, Share2 } from "lucide-react";
 import logo from "@/assets/red-checker-logo.png";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/chat/$threadId")({
   component: ChatThread,
@@ -85,10 +88,32 @@ function ChatWindow({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const savedIdsRef = useRef<Set<string>>(new Set(initial.map((m) => m.id)));
 
+  const share = useServerFn(createShare);
+  const shareM = useMutation({
+    mutationFn: () => share({ data: { threadId } }),
+    onSuccess: async (r) => {
+      const url = `${window.location.origin}/share/${r.id}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success("Share link copied", { description: url });
+      } catch {
+        toast.success("Share link created", { description: url });
+      }
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not share"),
+  });
+
   const { messages, sendMessage, status } = useChat({
     id: threadId,
     messages: initial,
-    transport: new DefaultChatTransport({ api: "/api/chat" }),
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+      headers: async (): Promise<Record<string, string>> => {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        return token ? { Authorization: `Bearer ${token}` } : {};
+      },
+    }),
     onError: (err) => toast.error(err.message || "Something went wrong"),
   });
 
@@ -122,6 +147,18 @@ function ChatWindow({
 
   return (
     <div className="flex h-full flex-col">
+      <div className="flex items-center justify-end border-b bg-background/50 px-3 py-1.5">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => shareM.mutate()}
+          disabled={shareM.isPending || messages.length === 0}
+          className="h-7 text-xs"
+        >
+          <Share2 className="mr-1.5 h-3.5 w-3.5" />
+          {shareM.isPending ? "Sharing…" : "Share"}
+        </Button>
+      </div>
       <Conversation className="flex-1">
         <ConversationContent className="mx-auto w-full max-w-3xl">
           {messages.length === 0 ? (

@@ -64,8 +64,8 @@ function SharedChatView() {
       <header className="sticky top-0 z-10 border-b bg-background/90 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <Link to="/" className="flex items-center gap-2">
-            <img src={logo} alt="" width={28} height={28} className="h-7 w-7" />
-            <span className="font-serif font-bold">RedBot Law Checker</span>
+            <img src={logo} alt="" width={48} height={48} className="h-12 w-12" />
+            <span className="font-serif text-xl font-bold">RedBot Law Checker</span>
           </Link>
           {isAuthed ? (
             <Button onClick={() => forkM.mutate()} disabled={forkM.isPending} size="sm">

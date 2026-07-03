@@ -11,23 +11,24 @@ export const Route = createFileRoute("/")({
 function Landing() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-        <div className="flex items-center gap-3">
-          <img src={logo} alt="RedBot Law Checker" width={64} height={64} className="h-14 w-14 md:h-16 md:w-16" />
+      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
+        <Link to="/" className="flex items-center gap-4">
+          <img
+            src={logo}
+            alt="RedBot Law Checker"
+            width={80}
+            height={80}
+            className="h-16 w-16 md:h-20 md:w-20"
+          />
           <span className="font-serif text-2xl font-bold md:text-3xl">RedBot Law Checker</span>
-        </div>
-        <nav className="flex items-center gap-2">
+        </Link>
+        <nav className="flex items-center gap-3">
           <Link
             to="/auth"
-            className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline"
+            className="text-sm text-muted-foreground hover:text-foreground"
           >
             Sign in
           </Link>
-          <Button asChild>
-            <Link to="/chat">
-              Open the Chat <ArrowRight className="ml-1 h-4 w-4" />
-            </Link>
-          </Button>
         </nav>
       </header>
 

@@ -15,7 +15,7 @@ function ChatLayout() {
           <header className="flex h-12 items-center gap-2 border-b bg-background/80 px-3 backdrop-blur">
             <SidebarTrigger />
             <div className="font-serif text-sm font-semibold text-muted-foreground">
-              Red Checker · Malawi Law Assistant
+              RedBot Law Checker · Malawi Law Assistant
             </div>
           </header>
           <main className="flex-1 overflow-hidden">

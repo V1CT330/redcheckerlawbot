@@ -12,9 +12,9 @@ function Landing() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-        <div className="flex items-center gap-2">
-          <img src={logo} alt="Red Checker" width={36} height={36} className="h-9 w-9" />
-          <span className="font-serif text-xl font-bold">Red Checker</span>
+        <div className="flex items-center gap-3">
+          <img src={logo} alt="RedBot Law Checker" width={64} height={64} className="h-14 w-14 md:h-16 md:w-16" />
+          <span className="font-serif text-2xl font-bold md:text-3xl">RedBot Law Checker</span>
         </div>
         <nav className="flex items-center gap-2">
           <Link
@@ -42,7 +42,7 @@ function Landing() {
               Know your rights <span className="text-primary">in plain language.</span>
             </h1>
             <p className="mt-5 max-w-lg text-lg text-muted-foreground">
-              Red Checker is an AI assistant loaded with the Constitution, Acts of Parliament
+              RedBot Law Checker is an AI assistant loaded with the Constitution, Acts of Parliament
               and public policies of the Republic of Malawi. Ask a question, get a clear
               answer with the section it comes from.
             </p>
@@ -105,7 +105,7 @@ function Landing() {
 
       <footer className="border-t">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-6 text-sm text-muted-foreground sm:flex-row">
-          <p>© {new Date().getFullYear()} Red Checker · Malawi</p>
+          <p>© {new Date().getFullYear()} RedBot Law Checker · Malawi</p>
           <p>Educational tool — always consult a lawyer for binding advice.</p>
         </div>
       </footer>

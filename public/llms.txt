@@ -1,8 +1,8 @@
-# Red Checker
+# RedBot Law Checker
 
 > An AI assistant loaded with the Constitution, Acts of Parliament and public policies of the Republic of Malawi. Ask a question in plain language and get an answer with the specific section cited.
 
-Red Checker is intended for the general public in Malawi. It is not a substitute for a licensed legal practitioner but helps people understand their rights, obligations, and the workings of Malawian law.
+RedBot Law Checker is intended for the general public in Malawi. It is not a substitute for a licensed legal practitioner but helps people understand their rights, obligations, and the workings of Malawian law.
 
 ## Pages
-- [Home](/): Overview of Red Checker and what it can answer.
+- [Home](/): Overview of RedBot Law Checker and what it can answer.

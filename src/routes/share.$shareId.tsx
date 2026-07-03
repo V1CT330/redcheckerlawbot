@@ -15,9 +15,9 @@ export const Route = createFileRoute("/share/$shareId")({
   component: SharedChatView,
   head: ({ params }) => ({
     meta: [
-      { title: `Shared conversation · Red Checker` },
-      { name: "description", content: "A shared Red Checker conversation about Malawian law." },
-      { property: "og:title", content: "Shared conversation · Red Checker" },
+      { title: `Shared conversation · RedBot Law Checker` },
+      { name: "description", content: "A shared RedBot Law Checker conversation about Malawian law." },
+      { property: "og:title", content: "Shared conversation · RedBot Law Checker" },
       { property: "og:type", content: "article" },
     ],
     links: [{ rel: "canonical", href: `/share/${params.shareId}` }],
@@ -64,8 +64,8 @@ function SharedChatView() {
       <header className="sticky top-0 z-10 border-b bg-background/90 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <Link to="/" className="flex items-center gap-2">
-            <img src={logo} alt="" width={28} height={28} className="h-7 w-7" />
-            <span className="font-serif font-bold">Red Checker</span>
+            <img src={logo} alt="" width={48} height={48} className="h-12 w-12" />
+            <span className="font-serif text-xl font-bold">RedBot Law Checker</span>
           </Link>
           {isAuthed ? (
             <Button onClick={() => forkM.mutate()} disabled={forkM.isPending} size="sm">
@@ -105,7 +105,7 @@ function SharedChatView() {
           ))}
         </div>
         <p className="mt-8 text-center text-[11px] text-muted-foreground">
-          Red Checker can be wrong. For binding advice, consult a lawyer registered with the
+          RedBot Law Checker can be wrong. For binding advice, consult a lawyer registered with the
           Malawi Law Society (Legal Aid: 847).
         </p>
       </main>

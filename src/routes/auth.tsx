@@ -66,9 +66,9 @@ function AuthPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-md">
-        <Link to="/" className="mb-6 flex items-center justify-center gap-2">
-          <img src={logo} alt="" width={40} height={40} className="h-10 w-10" />
-          <span className="font-serif text-2xl font-bold">Red Checker</span>
+        <Link to="/" className="mb-6 flex items-center justify-center gap-3">
+          <img src={logo} alt="" width={72} height={72} className="h-16 w-16" />
+          <span className="font-serif text-3xl font-bold">RedBot Law Checker</span>
         </Link>
         <div className="rounded-2xl border bg-card p-8 shadow-lg">
           <h1 className="font-serif text-2xl font-semibold">

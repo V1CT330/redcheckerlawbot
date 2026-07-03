@@ -65,9 +65,9 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border">
-        <Link to="/chat" className="flex items-center gap-3 px-2 py-2">
-          <img src={logo} alt="" width={48} height={48} className="h-12 w-12 shrink-0" />
-          <span className="font-serif text-xl font-bold leading-tight text-sidebar-foreground">
+        <Link to="/chat" className="flex items-center gap-3.5 px-3 py-3">
+          <img src={logo} alt="" width={56} height={56} className="h-14 w-14 shrink-0" />
+          <span className="font-serif text-2xl font-bold leading-tight text-sidebar-foreground">
             RedBot Law Checker
           </span>
         </Link>

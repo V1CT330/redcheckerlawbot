@@ -68,7 +68,7 @@ export function AppSidebar() {
         <Link to="/chat" className="flex items-center gap-2 px-2 py-1">
           <img src={logo} alt="" width={28} height={28} className="h-7 w-7" />
           <span className="font-serif text-lg font-bold text-sidebar-foreground">
-            Red Checker
+            RedBot Law Checker
           </span>
         </Link>
         <div className="mt-2 grid grid-cols-3 gap-1 rounded-md bg-sidebar-accent/40 p-1 text-[11px]">

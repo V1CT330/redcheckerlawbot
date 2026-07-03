@@ -39,7 +39,7 @@ function ChatIndex() {
     <div className="flex h-full items-center justify-center">
       <div className="flex items-center gap-3 text-muted-foreground">
         <img src={logo} alt="" width={32} height={32} className="h-8 w-8" />
-        <span>Loading Red Checker…</span>
+        <span>Loading RedBot Law Checker…</span>
       </div>
     </div>
   );

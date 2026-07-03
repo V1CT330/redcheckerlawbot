@@ -164,7 +164,7 @@ function ChatWindow({
           {messages.length === 0 ? (
             <ConversationEmptyState
               icon={<img src={logo} alt="" width={56} height={56} className="h-14 w-14" />}
-              title="Ask Red Checker about Malawi law"
+              title="Ask RedBot Law Checker about Malawi law"
               description="From the Constitution to Acts of Parliament and public policies — get plain-language answers with citations."
             >
               <div className="mt-6 grid w-full max-w-xl gap-2 sm:grid-cols-2">
@@ -230,7 +230,7 @@ function ChatWindow({
             </PromptInputFooter>
           </PromptInput>
           <p className="mt-2 text-center text-[11px] text-muted-foreground">
-            Red Checker can be wrong. For binding advice, consult a lawyer registered with the
+            RedBot Law Checker can be wrong. For binding advice, consult a lawyer registered with the
             Malawi Law Society (Legal Aid: 847).
           </p>
         </div>

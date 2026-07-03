@@ -15,9 +15,9 @@ export const Route = createFileRoute("/share/$shareId")({
   component: SharedChatView,
   head: ({ params }) => ({
     meta: [
-      { title: `Shared conversation · Red Checker` },
-      { name: "description", content: "A shared Red Checker conversation about Malawian law." },
-      { property: "og:title", content: "Shared conversation · Red Checker" },
+      { title: `Shared conversation · RedBot Law Checker` },
+      { name: "description", content: "A shared RedBot Law Checker conversation about Malawian law." },
+      { property: "og:title", content: "Shared conversation · RedBot Law Checker" },
       { property: "og:type", content: "article" },
     ],
     links: [{ rel: "canonical", href: `/share/${params.shareId}` }],
@@ -65,7 +65,7 @@ function SharedChatView() {
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <Link to="/" className="flex items-center gap-2">
             <img src={logo} alt="" width={28} height={28} className="h-7 w-7" />
-            <span className="font-serif font-bold">Red Checker</span>
+            <span className="font-serif font-bold">RedBot Law Checker</span>
           </Link>
           {isAuthed ? (
             <Button onClick={() => forkM.mutate()} disabled={forkM.isPending} size="sm">
@@ -105,7 +105,7 @@ function SharedChatView() {
           ))}
         </div>
         <p className="mt-8 text-center text-[11px] text-muted-foreground">
-          Red Checker can be wrong. For binding advice, consult a lawyer registered with the
+          RedBot Law Checker can be wrong. For binding advice, consult a lawyer registered with the
           Malawi Law Society (Legal Aid: 847).
         </p>
       </main>

@@ -79,13 +79,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Red Checker — Malawi Law & Constitution AI" },
+      { title: "RedBot Law Checker — Malawi Law & Constitution AI" },
       {
         name: "description",
         content:
-          "Ask Red Checker anything about the Constitution, laws and policies of the Republic of Malawi. Plain-language legal answers, section citations, 24/7.",
+          "Ask RedBot Law Checker anything about the Constitution, laws and policies of the Republic of Malawi. Plain-language legal answers, section citations, 24/7.",
       },
-      { property: "og:title", content: "Red Checker — Malawi Law & Constitution AI" },
+      { property: "og:title", content: "RedBot Law Checker — Malawi Law & Constitution AI" },
       {
         property: "og:description",
         content:

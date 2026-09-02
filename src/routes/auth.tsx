@@ -23,45 +23,71 @@ function AuthPage() {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) navigate({ to: "/chat" });
     });
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
+        navigate({ to: "/chat" });
+      }
+    });
+    return () => sub.subscription.unsubscribe();
   }, [navigate]);
 
   const onGoogle = async () => {
     setLoading(true);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/auth",
-    });
-    if (result.error) {
-      toast.error(result.error.message ?? "Could not sign in with Google");
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin + "/auth",
+      });
+      if (result.error) {
+        toast.error(
+          /unsupported provider|not enabled/i.test(result.error.message ?? "")
+            ? "Google sign-in isn't available yet — use email and password."
+            : (result.error.message ?? "Could not sign in with Google"),
+        );
+        setLoading(false);
+        return;
+      }
+      if (result.redirected) return;
+      navigate({ to: "/chat" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not sign in with Google");
       setLoading(false);
-      return;
     }
-    if (result.redirected) return;
-    navigate({ to: "/chat" });
   };
+
 
   const onEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin + "/chat" },
+          options: { emailRedirectTo: window.location.origin + "/auth" },
         });
         if (error) throw error;
-        toast.success("Account created. You can chat now.");
+        if (!data.session) {
+          toast.success("Check your email to confirm your account, then sign in.");
+          setMode("signin");
+          return;
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
       navigate({ to: "/chat" });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Authentication failed");
+      const message = err instanceof Error ? err.message : "Authentication failed";
+      toast.error(
+        /invalid login credentials/i.test(message)
+          ? "Wrong email or password. If you just signed up, confirm your email first."
+          : message,
+      );
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10">

@@ -167,8 +167,13 @@ export function AppSidebar() {
         {tab === "law" && <LawLinksPanel />}
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border">
-        <Button variant="ghost" onClick={signOut} className="justify-start text-sidebar-foreground hover:bg-sidebar-accent">
-          <LogOut className="mr-2 h-4 w-4" /> Sign out
+        <Button
+          variant="ghost"
+          onClick={signOut}
+          disabled={signingOut}
+          className="justify-start text-sidebar-foreground hover:bg-sidebar-accent"
+        >
+          <LogOut className="mr-2 h-4 w-4" /> {signingOut ? "Signing out…" : "Sign out"}
         </Button>
       </SidebarFooter>
     </Sidebar>

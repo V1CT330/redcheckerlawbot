@@ -21,9 +21,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { LawLinksPanel } from "@/components/law-links-panel";
+import { DevelopersPanel } from "@/components/developers-panel";
 import { useState } from "react";
 
-type Tab = "chats" | "library" | "law";
+type Tab = "chats" | "library" | "law" | "dev";
 
 export function AppSidebar() {
   const navigate = useNavigate();
@@ -56,10 +57,23 @@ export function AppSidebar() {
     },
   });
 
+  const [signingOut, setSigningOut] = useState(false);
+
   const signOut = async () => {
-    await supabase.auth.signOut();
-    router.invalidate();
-    navigate({ to: "/" });
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await supabase.auth.signOut({ scope: "global" });
+    } catch {
+      try {
+        await supabase.auth.signOut({ scope: "local" });
+      } catch {
+        // proceed — local session cleanup below still applies
+      }
+    }
+    qc.clear();
+    await router.invalidate();
+    navigate({ to: "/", replace: true });
   };
 
   return (
@@ -71,11 +85,12 @@ export function AppSidebar() {
             RedBot Law Checker
           </span>
         </Link>
-        <div className="mt-2 grid grid-cols-3 gap-1 rounded-md bg-sidebar-accent/40 p-1 text-[11px]">
+        <div className="mt-2 grid grid-cols-4 gap-1 rounded-md bg-sidebar-accent/40 p-1 text-[11px]">
           {([
             ["chats", "Chats"],
             ["library", "Library"],
             ["law", "Law"],
+            ["dev", "API"],
           ] as [Tab, string][]).map(([id, label]) => (
             <button
               key={id}
@@ -152,10 +167,16 @@ export function AppSidebar() {
         )}
         {tab === "library" && <DocumentsPanel />}
         {tab === "law" && <LawLinksPanel />}
+        {tab === "dev" && <DevelopersPanel />}
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border">
-        <Button variant="ghost" onClick={signOut} className="justify-start text-sidebar-foreground hover:bg-sidebar-accent">
-          <LogOut className="mr-2 h-4 w-4" /> Sign out
+        <Button
+          variant="ghost"
+          onClick={signOut}
+          disabled={signingOut}
+          className="justify-start text-sidebar-foreground hover:bg-sidebar-accent"
+        >
+          <LogOut className="mr-2 h-4 w-4" /> {signingOut ? "Signing out…" : "Sign out"}
         </Button>
       </SidebarFooter>
     </Sidebar>

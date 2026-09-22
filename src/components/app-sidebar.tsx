@@ -21,9 +21,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { LawLinksPanel } from "@/components/law-links-panel";
+import { DevelopersPanel } from "@/components/developers-panel";
 import { useState } from "react";
 
-type Tab = "chats" | "library" | "law";
+type Tab = "chats" | "library" | "law" | "dev";
 
 export function AppSidebar() {
   const navigate = useNavigate();
@@ -84,11 +85,12 @@ export function AppSidebar() {
             RedBot Law Checker
           </span>
         </Link>
-        <div className="mt-2 grid grid-cols-3 gap-1 rounded-md bg-sidebar-accent/40 p-1 text-[11px]">
+        <div className="mt-2 grid grid-cols-4 gap-1 rounded-md bg-sidebar-accent/40 p-1 text-[11px]">
           {([
             ["chats", "Chats"],
             ["library", "Library"],
             ["law", "Law"],
+            ["dev", "API"],
           ] as [Tab, string][]).map(([id, label]) => (
             <button
               key={id}
@@ -165,6 +167,7 @@ export function AppSidebar() {
         )}
         {tab === "library" && <DocumentsPanel />}
         {tab === "law" && <LawLinksPanel />}
+        {tab === "dev" && <DevelopersPanel />}
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border">
         <Button

@@ -56,10 +56,23 @@ export function AppSidebar() {
     },
   });
 
+  const [signingOut, setSigningOut] = useState(false);
+
   const signOut = async () => {
-    await supabase.auth.signOut();
-    router.invalidate();
-    navigate({ to: "/" });
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await supabase.auth.signOut({ scope: "global" });
+    } catch {
+      try {
+        await supabase.auth.signOut({ scope: "local" });
+      } catch {
+        // proceed — local session cleanup below still applies
+      }
+    }
+    qc.clear();
+    await router.invalidate();
+    navigate({ to: "/", replace: true });
   };
 
   return (

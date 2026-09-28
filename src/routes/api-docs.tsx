@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Check, Copy, KeyRound, ShieldCheck, BookOpen, Terminal } from "lucide-react";
+import { Check, Copy, KeyRound, ShieldCheck, BookOpen, Terminal, Play, Loader2, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import logo from "@/assets/red-checker-logo.png";
 
 export const Route = createFileRoute("/api-docs")({
@@ -46,6 +48,116 @@ function CodeBlock({ title, code }: { title: string; code: string }) {
       <pre className="overflow-x-auto bg-muted/30 p-4 text-xs leading-relaxed">
         <code>{code}</code>
       </pre>
+    </div>
+  );
+}
+
+type PlaygroundResult =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "done"; status: number; ms: number; body: string };
+
+function Playground({ baseUrl }: { baseUrl: string }) {
+  const [apiKey, setApiKey] = useState("");
+  const [question, setQuestion] = useState(
+    "What is the notice period for terminating an employee in Malawi?"
+  );
+  const [result, setResult] = useState<PlaygroundResult>({ kind: "idle" });
+
+  const send = async () => {
+    setResult({ kind: "loading" });
+    const started = performance.now();
+    try {
+      const res = await fetch(`${baseUrl}/api/public/v1/ask`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey.trim()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ question }),
+      });
+      const ms = Math.round(performance.now() - started);
+      const text = await res.text();
+      let pretty = text;
+      try {
+        pretty = JSON.stringify(JSON.parse(text), null, 2);
+      } catch {
+        /* keep raw text */
+      }
+      setResult({ kind: "done", status: res.status, ms, body: pretty });
+    } catch (err) {
+      setResult({
+        kind: "done",
+        status: 0,
+        ms: Math.round(performance.now() - started),
+        body: `Network error: ${err instanceof Error ? err.message : String(err)}`,
+      });
+    }
+  };
+
+  const loading = result.kind === "loading";
+  const statusColor =
+    result.kind === "done"
+      ? result.status >= 200 && result.status < 300
+        ? "text-green-600 dark:text-green-400"
+        : "text-destructive"
+      : "";
+
+  return (
+    <div className="space-y-4 rounded-lg border p-4">
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium" htmlFor="pg-key">
+          API key
+        </label>
+        <Input
+          id="pg-key"
+          type="password"
+          placeholder="rlb_sk_…"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          autoComplete="off"
+        />
+        <p className="text-xs text-muted-foreground">
+          Your key is only sent to this app's own API — it is never stored or sent elsewhere.
+        </p>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium" htmlFor="pg-question">
+          Question
+        </label>
+        <Textarea
+          id="pg-question"
+          rows={3}
+          maxLength={4000}
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+        />
+        <p className="text-right text-xs text-muted-foreground">{question.length}/4000</p>
+      </div>
+
+      <Button onClick={send} disabled={loading || !apiKey.trim() || !question.trim()}>
+        {loading ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <Play className="mr-2 h-4 w-4" />
+        )}
+        {loading ? "Asking…" : "Send request"}
+      </Button>
+
+      {result.kind === "done" && (
+        <div className="overflow-hidden rounded-lg border">
+          <div className="flex items-center gap-3 border-b bg-muted/60 px-3 py-1.5 text-xs">
+            <span className={`font-semibold ${statusColor}`}>
+              {result.status === 0 ? "Network error" : `HTTP ${result.status}`}
+            </span>
+            <span className="text-muted-foreground">{result.ms} ms</span>
+          </div>
+          <pre className="max-h-96 overflow-auto bg-muted/30 p-4 text-xs leading-relaxed whitespace-pre-wrap">
+            <code>{result.body}</code>
+          </pre>
+        </div>
+      )}
     </div>
   );
 }
@@ -219,6 +331,18 @@ x-api-key: rlb_sk_YOUR_KEY`}
               </tbody>
             </table>
           </div>
+        </section>
+
+        {/* Playground */}
+        <section className="space-y-3">
+          <h2 className="flex items-center gap-2 text-xl font-semibold">
+            <FlaskConical className="h-5 w-5 text-primary" /> Try it live
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Paste your API key and a question to send a real request to the endpoint and inspect
+            the response — status code, timing and full body.
+          </p>
+          <Playground baseUrl={baseUrl} />
         </section>
 
         {/* Code samples */}

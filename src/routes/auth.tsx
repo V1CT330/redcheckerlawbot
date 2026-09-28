@@ -19,17 +19,26 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const redirected = useRef(false);
+  const goToChat = useCallback(() => {
+    if (redirected.current) return;
+    redirected.current = true;
+    navigate({ to: "/chat", replace: true }).catch(() => {
+      redirected.current = false;
+    });
+  }, [navigate]);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/chat" });
+      if (data.session) goToChat();
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (session && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
-        navigate({ to: "/chat" });
+        setTimeout(goToChat, 0);
       }
     });
     return () => sub.subscription.unsubscribe();
-  }, [navigate]);
+  }, [goToChat]);
 
   const onGoogle = async () => {
     setLoading(true);

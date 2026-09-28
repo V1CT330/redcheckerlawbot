@@ -131,9 +131,13 @@ function RootComponent() {
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
-      router.invalidate();
-      if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
+      // Invalidating the router on SIGNED_IN races the sign-in page's own
+      // navigation to /chat and crashes the render ("Uncaught undefined").
+      if (event === "SIGNED_OUT") {
+        router.invalidate().catch(() => {});
+        return;
+      }
+      if (event === "SIGNED_IN" || event === "USER_UPDATED") queryClient.invalidateQueries();
     });
     return () => sub.subscription.unsubscribe();
   }, [router, queryClient]);

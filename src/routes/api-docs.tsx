@@ -333,6 +333,18 @@ x-api-key: rlb_sk_YOUR_KEY`}
           </div>
         </section>
 
+        {/* Playground */}
+        <section className="space-y-3">
+          <h2 className="flex items-center gap-2 text-xl font-semibold">
+            <FlaskConical className="h-5 w-5 text-primary" /> Try it live
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Paste your API key and a question to send a real request to the endpoint and inspect
+            the response — status code, timing and full body.
+          </p>
+          <Playground baseUrl={baseUrl} />
+        </section>
+
         {/* Code samples */}
         <section className="space-y-3">
           <h2 className="flex items-center gap-2 text-xl font-semibold">

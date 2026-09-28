@@ -157,6 +157,14 @@ export function DevelopersPanel() {
           Response: <code className="text-[11px]">{`{ "answer": "…" }`}</code>. Rate limits and
           fair-use apply; keep one key per app and revoke any key that leaks.
         </p>
+        <a
+          href="/api-docs"
+          target="_blank"
+          rel="noreferrer"
+          className="mt-2 block font-medium text-primary underline underline-offset-2"
+        >
+          Full API documentation →
+        </a>
       </div>
     </div>
   );

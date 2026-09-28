@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Check, Copy, KeyRound, ShieldCheck, BookOpen, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/red-checker-logo.png";
 
 export const Route = createFileRoute("/api-docs")({
   head: () => ({

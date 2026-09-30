@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Copy, KeyRound, ShieldCheck, BookOpen, Terminal, Play, Loader2, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -163,7 +163,10 @@ function Playground({ baseUrl }: { baseUrl: string }) {
 }
 
 function ApiDocsPage() {
-  const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://your-redbot-url";
+  // Resolve the origin after mount so SSR and the first client render match
+  // (avoids a hydration mismatch on the code samples).
+  const [baseUrl, setBaseUrl] = useState("https://your-redbot-url");
+  useEffect(() => setBaseUrl(window.location.origin), []);
 
   const curl = `curl -X POST ${baseUrl}/api/public/v1/ask \\
   -H "Authorization: Bearer rlb_sk_YOUR_KEY" \\

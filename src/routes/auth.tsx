@@ -58,7 +58,7 @@ function AuthPage() {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         if (!data.session) {
-          toast.success("We sent a verification code to your email.");
+          toast.success("RedBot Law Checker sent a verification code to your email.");
           setCode("");
           setMode("verify");
           return;
@@ -75,7 +75,7 @@ function AuthPage() {
       const message = err instanceof Error ? err.message : "Authentication failed";
       if (/email not confirmed/i.test(message)) {
         await supabase.auth.resend({ type: "signup", email });
-        toast.info("Your email isn't verified yet. We sent you a new code.");
+        toast.info("Your email isn't verified yet. RedBot Law Checker sent you a new code.");
         setMode("verify");
       } else {
         toast.error(
@@ -96,7 +96,7 @@ function AuthPage() {
     const { error } = await supabase.auth.resend({ type: "signup", email });
     setLoading(false);
     if (error) toast.error(error.message);
-    else toast.success("New code sent.");
+    else toast.success("New code sent from RedBot Law Checker.");
   };
 
   return (
@@ -115,7 +115,7 @@ function AuthPage() {
               ? "Sign in to keep your legal conversations."
               : mode === "signup"
                 ? "Start asking questions about Malawi law."
-                : `Enter the code we sent to ${email}.`}
+                : `Enter the code RedBot Law Checker sent to ${email}.`}
           </p>
 
           <form onSubmit={onEmail} className="mt-6 space-y-4">

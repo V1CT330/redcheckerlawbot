@@ -25,7 +25,7 @@ export const Route = createFileRoute("/share/$shareId")({
   errorComponent: ({ error }) => (
     <div className="mx-auto max-w-xl px-6 py-16 text-center">
       <h1 className="font-serif text-2xl font-bold">Shared chat not found</h1>
-      <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
+      <p className="mt-2 text-sm text-muted-foreground">{error instanceof Error ? error.message : String(error)}</p>
       <Link to="/" className="mt-6 inline-block text-primary underline">Go home</Link>
     </div>
   ),

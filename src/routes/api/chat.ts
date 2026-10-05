@@ -68,15 +68,24 @@ export const Route = createFileRoute("/api/chat")({
               execute: async ({ query, k }) => {
                 if (!userToken) return { matches: [], note: "Sign in to search your uploaded documents." };
                 try {
-                  const [embedding] = await embedTexts([query]);
-                  const supabase = createClient<Database>(
-                    process.env.SUPABASE_URL!,
-                    process.env.SUPABASE_PUBLISHABLE_KEY!,
-                    {
-                      global: { headers: { Authorization: `Bearer ${userToken}` } },
-                      auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+                  const pk = process.env.SUPABASE_PUBLISHABLE_KEY!;
+                  const supabase = createClient<Database>(process.env.SUPABASE_URL!, pk, {
+                    global: {
+                      headers: { Authorization: `Bearer ${userToken}` },
+                      fetch: (input, init) => {
+                        const h = new Headers(init?.headers);
+                        h.set("apikey", pk);
+                        return fetch(input, { ...init, headers: h });
+                      },
                     },
-                  );
+                    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+                  });
+                  // Validate the caller's token; the database scopes results to auth.uid().
+                  const { data: claims, error: claimsErr } = await supabase.auth.getClaims(userToken);
+                  if (claimsErr || !claims?.claims?.sub) {
+                    return { matches: [], note: "Sign in to search your uploaded documents." };
+                  }
+                  const [embedding] = await embedTexts([query]);
                   const { data, error } = await supabase.rpc("match_document_chunks", {
                     query_embedding: embedding as unknown as string,
                     match_count: k,

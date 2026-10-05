@@ -38,17 +38,16 @@ function AuthPage() {
     });
   }, [navigate]);
 
+  // Never sign in automatically: a saved session only offers a "Continue" choice.
+  const [savedEmail, setSavedEmail] = useState<string | null>(null);
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) goToChat();
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
-        setTimeout(goToChat, 0);
-      }
-    });
-    return () => sub.subscription.unsubscribe();
-  }, [goToChat]);
+    supabase.auth.getUser().then(({ data }) => setSavedEmail(data.user?.email ?? null));
+  }, []);
+
+  const useDifferentAccount = async () => {
+    await supabase.auth.signOut({ scope: "local" });
+    setSavedEmail(null);
+  };
 
   const onEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,6 +105,19 @@ function AuthPage() {
           <img src={logo} alt="" width={80} height={80} className="h-20 w-20" />
           <span className="font-serif text-3xl font-bold md:text-4xl">RedBot Law Checker</span>
         </Link>
+        {savedEmail && (
+          <div className="mb-4 rounded-2xl border bg-card p-5 text-sm shadow-sm">
+            <p>
+              You're already signed in as <strong>{savedEmail}</strong>.
+            </p>
+            <div className="mt-3 flex gap-2">
+              <Button size="sm" onClick={goToChat}>Continue</Button>
+              <Button size="sm" variant="outline" onClick={useDifferentAccount}>
+                Use a different account
+              </Button>
+            </div>
+          </div>
+        )}
         <div className="rounded-2xl border bg-card p-8 shadow-lg">
           <h1 className="font-serif text-2xl font-semibold">
             {mode === "signin" ? "Welcome back" : mode === "signup" ? "Create your account" : "Verify your email"}

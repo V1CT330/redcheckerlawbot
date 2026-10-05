@@ -224,11 +224,7 @@ export type Database = {
     }
     Functions: {
       match_document_chunks: {
-        Args: {
-          filter_user?: string
-          match_count?: number
-          query_embedding: string
-        }
+        Args: { match_count?: number; query_embedding: string }
         Returns: {
           content: string
           document_id: string

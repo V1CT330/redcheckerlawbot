@@ -19,6 +19,7 @@ import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ShareShareIdRouteImport } from './routes/share.$shareId'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
 import { Route as AuthenticatedChatThreadIdRouteImport } from './routes/_authenticated/chat.$threadId'
+import { Route as AuthenticatedChatApiDocsRouteImport } from './routes/_authenticated/chat.api-docs'
 import { Route as ApiPublicV1AskRouteImport } from './routes/api/public/v1/ask'
 
 const IndexRoute = IndexRouteImport.update({
@@ -71,6 +72,12 @@ const AuthenticatedChatThreadIdRoute =
     path: '/$threadId',
     getParentRoute: () => AuthenticatedChatRoute,
   } as any)
+const AuthenticatedChatApiDocsRoute =
+  AuthenticatedChatApiDocsRouteImport.update({
+    id: '/api-docs',
+    path: '/api-docs',
+    getParentRoute: () => AuthenticatedChatRoute,
+  } as any)
 const ApiPublicV1AskRoute = ApiPublicV1AskRouteImport.update({
   id: '/api/public/v1/ask',
   path: '/api/public/v1/ask',
@@ -86,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/api/chat': typeof ApiChatRoute
   '/share/$shareId': typeof ShareShareIdRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
+  '/chat/api-docs': typeof AuthenticatedChatApiDocsRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
   '/api/public/v1/ask': typeof ApiPublicV1AskRoute
 }
@@ -97,6 +105,7 @@ export interface FileRoutesByTo {
   '/api/chat': typeof ApiChatRoute
   '/share/$shareId': typeof ShareShareIdRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
+  '/chat/api-docs': typeof AuthenticatedChatApiDocsRoute
   '/chat': typeof AuthenticatedChatIndexRoute
   '/api/public/v1/ask': typeof ApiPublicV1AskRoute
 }
@@ -111,6 +120,7 @@ export interface FileRoutesById {
   '/api/chat': typeof ApiChatRoute
   '/share/$shareId': typeof ShareShareIdRoute
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
+  '/_authenticated/chat/api-docs': typeof AuthenticatedChatApiDocsRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/api/public/v1/ask': typeof ApiPublicV1AskRoute
 }
@@ -125,6 +135,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/share/$shareId'
     | '/chat/$threadId'
+    | '/chat/api-docs'
     | '/chat/'
     | '/api/public/v1/ask'
   fileRoutesByTo: FileRoutesByTo
@@ -136,6 +147,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/share/$shareId'
     | '/chat/$threadId'
+    | '/chat/api-docs'
     | '/chat'
     | '/api/public/v1/ask'
   id:
@@ -149,6 +161,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/share/$shareId'
     | '/_authenticated/chat/$threadId'
+    | '/_authenticated/chat/api-docs'
     | '/_authenticated/chat/'
     | '/api/public/v1/ask'
   fileRoutesById: FileRoutesById
@@ -236,6 +249,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChatThreadIdRouteImport
       parentRoute: typeof AuthenticatedChatRoute
     }
+    '/_authenticated/chat/api-docs': {
+      id: '/_authenticated/chat/api-docs'
+      path: '/api-docs'
+      fullPath: '/chat/api-docs'
+      preLoaderRoute: typeof AuthenticatedChatApiDocsRouteImport
+      parentRoute: typeof AuthenticatedChatRoute
+    }
     '/api/public/v1/ask': {
       id: '/api/public/v1/ask'
       path: '/api/public/v1/ask'
@@ -248,11 +268,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedChatRouteChildren {
   AuthenticatedChatThreadIdRoute: typeof AuthenticatedChatThreadIdRoute
+  AuthenticatedChatApiDocsRoute: typeof AuthenticatedChatApiDocsRoute
   AuthenticatedChatIndexRoute: typeof AuthenticatedChatIndexRoute
 }
 
 const AuthenticatedChatRouteChildren: AuthenticatedChatRouteChildren = {
   AuthenticatedChatThreadIdRoute: AuthenticatedChatThreadIdRoute,
+  AuthenticatedChatApiDocsRoute: AuthenticatedChatApiDocsRoute,
   AuthenticatedChatIndexRoute: AuthenticatedChatIndexRoute,
 }
 

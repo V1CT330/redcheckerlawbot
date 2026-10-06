@@ -1,8 +1,8 @@
 # Roadmap
 
-1. [in progress] Reliable sign-out: clear session + cache, redirect to landing. Verification blocked on backend pooler waking up.
-2. [todo] Developer API: public API endpoints (documented, key-verified), API key generation UI for developers, usage docs page.
+1. [blocked] Verify authenticated sign-out end to end: requires a signed-in preview session or approval for a named account. Device sign-out now cancels requests, clears cached data, and opens sign-in.
+2. [done] Developer API: key generation, verified public endpoint, and in-app documentation already implemented.
 
-3. [in progress] Keep device sign-ins saved until explicit sign-out.
-4. [in progress] Balance logo size and spacing across pages.
-5. [in progress] Add tiny copy controls to every chat message and verify them.
+3. [done] Keep device sign-ins saved until explicit sign-out; validated saved sessions open chat without asking again. Authenticated browser verification shares task 1's blocker.
+4. [done] Balance logo size and spacing across pages; retain the original shield and omit the obsolete embedded name. Home and sign-in visually checked.
+5. [done] Add tiny copy controls to every private and shared chat message; clipboard copying and confirmation tested in the browser.

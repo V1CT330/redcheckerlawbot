@@ -21,11 +21,20 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Scale } from "lucide-react";
-import logo from "@/assets/red-checker-logo.png";
+import { BrandLogo } from "@/components/brand-logo";
+import { MessageCopyButton } from "@/components/message-copy-button";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/chat/$threadId")({
+  head: () => ({ meta: [
+    { title: "Legal Conversation | RedBot Law Checker" },
+    { name: "description", content: "Your private conversation about Malawi law with RedBot Law Checker." },
+    { property: "og:title", content: "Legal Conversation | RedBot Law Checker" },
+    { property: "og:description", content: "Your private conversation about Malawi law with RedBot Law Checker." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: ChatThread,
 });
 
@@ -135,7 +144,7 @@ function ChatWindow({
         <ConversationContent className="mx-auto w-full max-w-3xl">
           {messages.length === 0 ? (
             <ConversationEmptyState
-              icon={<img src={logo} alt="" width={56} height={56} className="h-14 w-14" />}
+              icon={<BrandLogo className="w-12" />}
               title="Ask RedBot Law Checker about Malawi law"
               description="From the Constitution to Acts of Parliament and public policies — get plain-language answers with citations."
             >
@@ -173,6 +182,7 @@ function ChatWindow({
                     </div>
                   )}
                 </MessageContent>
+                <MessageCopyButton from={m.role} text={m.parts.map((p) => p.type === "text" ? p.text : "").join("")} />
               </Message>
             ))
           )}

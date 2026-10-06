@@ -8,6 +8,8 @@ export const Route = createFileRoute("/_authenticated/chat/api-docs")({
       { name: "description", content: "Developer API documentation for RedBot Law Checker." },
       { property: "og:title", content: "API Documentation | RedBot Law Checker" },
       { property: "og:description", content: "Developer API documentation for RedBot Law Checker." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: ApiDocsContent,

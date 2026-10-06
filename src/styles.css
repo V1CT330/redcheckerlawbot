@@ -4,6 +4,13 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Frame only the original shield, excluding its whitespace and obsolete wordmark. */
+.brand-mark img {
+  width: 328.205%;
+  max-width: none;
+  transform: translate(-34.765625%, -30.2734375%);
+}
+
 @theme inline {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Playfair Display", ui-serif, Georgia, serif;

@@ -3,9 +3,17 @@ import { useEffect, useRef } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { createThread, listThreads } from "@/lib/threads.functions";
-import logo from "@/assets/red-checker-logo.png";
+import { BrandLogo } from "@/components/brand-logo";
 
 export const Route = createFileRoute("/_authenticated/chat/")({
+  head: () => ({ meta: [
+    { title: "Your Chats | RedBot Law Checker" },
+    { name: "description", content: "Open your saved legal conversations with RedBot Law Checker." },
+    { property: "og:title", content: "Your Chats | RedBot Law Checker" },
+    { property: "og:description", content: "Open your saved legal conversations with RedBot Law Checker." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: ChatIndex,
 });
 
@@ -38,7 +46,7 @@ function ChatIndex() {
   return (
     <div className="flex h-full items-center justify-center">
       <div className="flex items-center gap-3 text-muted-foreground">
-        <img src={logo} alt="" width={32} height={32} className="h-8 w-8" />
+        <BrandLogo className="w-8" />
         <span>Loading RedBot Law Checker…</span>
       </div>
     </div>

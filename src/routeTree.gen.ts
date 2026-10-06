@@ -9,26 +9,26 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as ApiDocsRouteImport } from './routes/api-docs'
-import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ShareShareIdRouteImport } from './routes/share.$shareId'
-import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as ApiDocsRouteImport } from './routes/api-docs'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
+import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as ShareShareIdRouteImport } from './routes/share.$shareId'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
 import { Route as AuthenticatedChatThreadIdRouteImport } from './routes/_authenticated/chat.$threadId'
+import { Route as AuthenticatedChatApiDocsRouteImport } from './routes/_authenticated/chat.api-docs'
 import { Route as ApiPublicV1AskRouteImport } from './routes/api/public/v1/ask'
 
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiDocsRoute = ApiDocsRouteImport.update({
@@ -36,29 +36,30 @@ const ApiDocsRoute = ApiDocsRouteImport.update({
   path: '/api-docs',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
-  id: '/_authenticated',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ShareShareIdRoute = ShareShareIdRouteImport.update({
-  id: '/share/$shareId',
-  path: '/share/$shareId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiChatRoute = ApiChatRouteImport.update({
-  id: '/api/chat',
-  path: '/api/chat',
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedChatRoute = AuthenticatedChatRouteImport.update({
   id: '/chat',
   path: '/chat',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShareShareIdRoute = ShareShareIdRouteImport.update({
+  id: '/share/$shareId',
+  path: '/share/$shareId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedChatIndexRoute = AuthenticatedChatIndexRouteImport.update({
   id: '/',
@@ -69,6 +70,12 @@ const AuthenticatedChatThreadIdRoute =
   AuthenticatedChatThreadIdRouteImport.update({
     id: '/$threadId',
     path: '/$threadId',
+    getParentRoute: () => AuthenticatedChatRoute,
+  } as any)
+const AuthenticatedChatApiDocsRoute =
+  AuthenticatedChatApiDocsRouteImport.update({
+    id: '/api-docs',
+    path: '/api-docs',
     getParentRoute: () => AuthenticatedChatRoute,
   } as any)
 const ApiPublicV1AskRoute = ApiPublicV1AskRouteImport.update({
@@ -86,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/api/chat': typeof ApiChatRoute
   '/share/$shareId': typeof ShareShareIdRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
+  '/chat/api-docs': typeof AuthenticatedChatApiDocsRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
   '/api/public/v1/ask': typeof ApiPublicV1AskRoute
 }
@@ -97,6 +105,7 @@ export interface FileRoutesByTo {
   '/api/chat': typeof ApiChatRoute
   '/share/$shareId': typeof ShareShareIdRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
+  '/chat/api-docs': typeof AuthenticatedChatApiDocsRoute
   '/chat': typeof AuthenticatedChatIndexRoute
   '/api/public/v1/ask': typeof ApiPublicV1AskRoute
 }
@@ -111,6 +120,7 @@ export interface FileRoutesById {
   '/api/chat': typeof ApiChatRoute
   '/share/$shareId': typeof ShareShareIdRoute
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
+  '/_authenticated/chat/api-docs': typeof AuthenticatedChatApiDocsRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/api/public/v1/ask': typeof ApiPublicV1AskRoute
 }
@@ -125,6 +135,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/share/$shareId'
     | '/chat/$threadId'
+    | '/chat/api-docs'
     | '/chat/'
     | '/api/public/v1/ask'
   fileRoutesByTo: FileRoutesByTo
@@ -136,6 +147,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/share/$shareId'
     | '/chat/$threadId'
+    | '/chat/api-docs'
     | '/chat'
     | '/api/public/v1/ask'
   id:
@@ -149,6 +161,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/share/$shareId'
     | '/_authenticated/chat/$threadId'
+    | '/_authenticated/chat/api-docs'
     | '/_authenticated/chat/'
     | '/api/public/v1/ask'
   fileRoutesById: FileRoutesById
@@ -166,25 +179,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api-docs': {
-      id: '/api-docs'
-      path: '/api-docs'
-      fullPath: '/api-docs'
-      preLoaderRoute: typeof ApiDocsRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -194,25 +193,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/api-docs': {
+      id: '/api-docs'
+      path: '/api-docs'
+      fullPath: '/api-docs'
+      preLoaderRoute: typeof ApiDocsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/share/$shareId': {
-      id: '/share/$shareId'
-      path: '/share/$shareId'
-      fullPath: '/share/$shareId'
-      preLoaderRoute: typeof ShareShareIdRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/chat': {
-      id: '/api/chat'
-      path: '/api/chat'
-      fullPath: '/api/chat'
-      preLoaderRoute: typeof ApiChatRouteImport
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/chat': {
@@ -221,6 +220,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/chat'
       preLoaderRoute: typeof AuthenticatedChatRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/share/$shareId': {
+      id: '/share/$shareId'
+      path: '/share/$shareId'
+      fullPath: '/share/$shareId'
+      preLoaderRoute: typeof ShareShareIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/chat/': {
       id: '/_authenticated/chat/'
@@ -236,6 +249,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChatThreadIdRouteImport
       parentRoute: typeof AuthenticatedChatRoute
     }
+    '/_authenticated/chat/api-docs': {
+      id: '/_authenticated/chat/api-docs'
+      path: '/api-docs'
+      fullPath: '/chat/api-docs'
+      preLoaderRoute: typeof AuthenticatedChatApiDocsRouteImport
+      parentRoute: typeof AuthenticatedChatRoute
+    }
     '/api/public/v1/ask': {
       id: '/api/public/v1/ask'
       path: '/api/public/v1/ask'
@@ -248,11 +268,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedChatRouteChildren {
   AuthenticatedChatThreadIdRoute: typeof AuthenticatedChatThreadIdRoute
+  AuthenticatedChatApiDocsRoute: typeof AuthenticatedChatApiDocsRoute
   AuthenticatedChatIndexRoute: typeof AuthenticatedChatIndexRoute
 }
 
 const AuthenticatedChatRouteChildren: AuthenticatedChatRouteChildren = {
   AuthenticatedChatThreadIdRoute: AuthenticatedChatThreadIdRoute,
+  AuthenticatedChatApiDocsRoute: AuthenticatedChatApiDocsRoute,
   AuthenticatedChatIndexRoute: AuthenticatedChatIndexRoute,
 }
 

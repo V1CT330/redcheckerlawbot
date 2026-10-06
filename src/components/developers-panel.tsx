@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -157,14 +158,12 @@ export function DevelopersPanel() {
           Response: <code className="text-[11px]">{`{ "answer": "…" }`}</code>. Rate limits and
           fair-use apply; keep one key per app and revoke any key that leaks.
         </p>
-        <a
-          href="/api-docs"
-          target="_blank"
-          rel="noreferrer"
+        <Link
+          to="/chat/api-docs"
           className="mt-2 block font-medium text-primary underline underline-offset-2"
         >
-          Full API documentation →
-        </a>
+          Full API documentation
+        </Link>
       </div>
     </div>
   );

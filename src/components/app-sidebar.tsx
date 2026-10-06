@@ -10,13 +10,13 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Link, useNavigate, useParams, useRouter } from "@tanstack/react-router";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { createThread, deleteThread, listThreads } from "@/lib/threads.functions";
 import { Button } from "@/components/ui/button";
 import { LogOut, MessageSquarePlus, Trash2 } from "lucide-react";
-import logo from "@/assets/red-checker-logo.png";
+import { BrandLogo } from "@/components/brand-logo";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { DocumentsPanel } from "@/components/documents-panel";
@@ -28,7 +28,6 @@ type Tab = "chats" | "library" | "law" | "dev";
 
 export function AppSidebar() {
   const navigate = useNavigate();
-  const router = useRouter();
   const qc = useQueryClient();
   const params = useParams({ strict: false }) as { threadId?: string };
   const activeId = params.threadId;
@@ -63,25 +62,24 @@ export function AppSidebar() {
     if (signingOut) return;
     setSigningOut(true);
     try {
-      await supabase.auth.signOut({ scope: "global" });
-    } catch {
-      try {
-        await supabase.auth.signOut({ scope: "local" });
-      } catch {
-        // proceed — local session cleanup below still applies
-      }
+      await qc.cancelQueries();
+      qc.clear();
+      const { error } = await supabase.auth.signOut({ scope: "local" });
+      if (error) throw error;
+      await navigate({ to: "/auth", replace: true });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not sign out. Please try again.");
+    } finally {
+      setSigningOut(false);
     }
-    qc.clear();
-    await router.invalidate();
-    navigate({ to: "/", replace: true });
   };
 
   return (
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border">
         <Link to="/chat" className="flex items-center gap-3.5 px-3 py-3">
-          <img src={logo} alt="" width={56} height={56} className="h-14 w-14 shrink-0" />
-          <span className="font-serif text-2xl font-bold leading-tight text-sidebar-foreground">
+          <BrandLogo className="w-12" />
+          <span className="min-w-0 font-serif text-xl font-bold leading-tight text-sidebar-foreground">
             RedBot Law Checker
           </span>
         </Link>

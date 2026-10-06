@@ -6,7 +6,8 @@ import type { UIMessage } from "ai";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, GitFork } from "lucide-react";
-import logo from "@/assets/red-checker-logo.png";
+import { BrandLogo } from "@/components/brand-logo";
+import { MessageCopyButton } from "@/components/message-copy-button";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -18,7 +19,9 @@ export const Route = createFileRoute("/share/$shareId")({
       { title: `Shared conversation · RedBot Law Checker` },
       { name: "description", content: "A shared RedBot Law Checker conversation about Malawian law." },
       { property: "og:title", content: "Shared conversation · RedBot Law Checker" },
+      { property: "og:description", content: "A shared RedBot Law Checker conversation about Malawian law." },
       { property: "og:type", content: "article" },
+      { name: "twitter:card", content: "summary" },
     ],
     links: [{ rel: "canonical", href: `/share/${params.shareId}` }],
   }),
@@ -62,10 +65,10 @@ function SharedChatView() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-10 border-b bg-background/90 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
-          <Link to="/" className="flex items-center gap-3">
-            <img src={logo} alt="" width={64} height={64} className="h-16 w-16" />
-            <span className="font-serif text-2xl font-bold">RedBot Law Checker</span>
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-4 px-4 py-4">
+          <Link to="/" className="flex min-w-0 items-center gap-3">
+            <BrandLogo className="w-12 sm:w-14" />
+            <span className="min-w-0 font-serif text-xl font-bold leading-tight sm:text-2xl">RedBot Law Checker</span>
           </Link>
           {isAuthed ? (
             <Button onClick={() => forkM.mutate()} disabled={forkM.isPending} size="sm">
@@ -101,6 +104,7 @@ function SharedChatView() {
                   </div>
                 )}
               </MessageContent>
+              <MessageCopyButton from={m.role} text={m.parts.map((p) => p.type === "text" ? p.text : "").join("")} />
             </Message>
           ))}
         </div>

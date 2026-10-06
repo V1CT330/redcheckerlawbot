@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import logo from "@/assets/red-checker-logo.png";
+import { BrandLogo } from "@/components/brand-logo";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -38,16 +38,14 @@ function AuthPage() {
     });
   }, [navigate]);
 
-  // Never sign in automatically: a saved session only offers a "Continue" choice.
-  const [savedEmail, setSavedEmail] = useState<string | null>(null);
+  // A validated, persisted session remains signed in until the user signs out.
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setSavedEmail(data.user?.email ?? null));
-  }, []);
-
-  const useDifferentAccount = async () => {
-    await supabase.auth.signOut({ scope: "local" });
-    setSavedEmail(null);
-  };
+    let active = true;
+    supabase.auth.getUser().then(({ data }) => {
+      if (active && data.user) goToChat();
+    });
+    return () => { active = false; };
+  }, [goToChat]);
 
   const onEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,22 +100,9 @@ function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-md">
         <Link to="/" className="mb-8 flex items-center justify-center gap-4">
-          <img src={logo} alt="" width={80} height={80} className="h-20 w-20" />
-          <span className="font-serif text-3xl font-bold md:text-4xl">RedBot Law Checker</span>
+          <BrandLogo className="w-14 sm:w-16" />
+          <span className="min-w-0 font-serif text-2xl font-bold leading-tight sm:text-3xl">RedBot Law Checker</span>
         </Link>
-        {savedEmail && (
-          <div className="mb-4 rounded-2xl border bg-card p-5 text-sm shadow-sm">
-            <p>
-              You're already signed in as <strong>{savedEmail}</strong>.
-            </p>
-            <div className="mt-3 flex gap-2">
-              <Button size="sm" onClick={goToChat}>Continue</Button>
-              <Button size="sm" variant="outline" onClick={useDifferentAccount}>
-                Use a different account
-              </Button>
-            </div>
-          </div>
-        )}
         <div className="rounded-2xl border bg-card p-8 shadow-lg">
           <h1 className="font-serif text-2xl font-semibold">
             {mode === "signin" ? "Welcome back" : mode === "signup" ? "Create your account" : "Verify your email"}

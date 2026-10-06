@@ -1,33 +1,43 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, BookOpen, Scale, ShieldCheck } from "lucide-react";
-import logo from "@/assets/red-checker-logo.png";
+import { BrandLogo } from "@/components/brand-logo";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import hero from "@/assets/malawi-hero.jpg";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
+  head: () => ({ meta: [
+    { title: "RedBot Law Checker | Malawi Law Assistant" },
+    { name: "description", content: "Ask RedBot Law Checker about Malawi laws, the Constitution, and your legal rights." },
+    { property: "og:title", content: "RedBot Law Checker | Malawi Law Assistant" },
+    { property: "og:description", content: "Explore Malawi laws, the Constitution, and your legal rights with RedBot Law Checker." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
+  ] }),
   component: Landing,
 });
 
 function Landing() {
+  const [signedIn, setSignedIn] = useState(false);
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getUser().then(({ data }) => { if (active) setSignedIn(Boolean(data.user)); });
+    return () => { active = false; };
+  }, []);
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <Link to="/" className="flex items-center gap-4">
-          <img
-            src={logo}
-            alt="RedBot Law Checker"
-            width={80}
-            height={80}
-            className="h-16 w-16 md:h-20 md:w-20"
-          />
-          <span className="font-serif text-2xl font-bold md:text-3xl">RedBot Law Checker</span>
+        <Link to="/" className="flex min-w-0 items-center gap-3 sm:gap-4">
+          <BrandLogo className="w-12 sm:w-16" />
+          <span className="min-w-0 font-serif text-xl font-bold leading-tight sm:text-3xl">RedBot Law Checker</span>
         </Link>
-        <nav className="flex items-center gap-3">
+        <nav className="ml-4 flex shrink-0 items-center gap-3">
           <Link
-            to="/auth"
+            to={signedIn ? "/chat" : "/auth"}
             className="text-sm text-muted-foreground hover:text-foreground"
           >
-            Sign in
+            {signedIn ? "Your chats" : "Sign in"}
           </Link>
         </nav>
       </header>

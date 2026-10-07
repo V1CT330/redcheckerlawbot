@@ -31,16 +31,9 @@ export function createOpenRouterProvider(apiKey: string) {
 }
 
 export function createAvailableModel() {
-  const geminiKey = process.env.GEMINI_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;
   const openRouterKey = process.env.OPENROUTER_API_KEY;
-
-  if (geminiKey) {
-    return {
-      provider: "gemini" as const,
-      model: createGeminiProvider(geminiKey)("gemini-3-flash-preview"),
-    };
-  }
+  const geminiKey = process.env.GEMINI_API_KEY;
 
   if (groqKey) {
     return {
@@ -58,7 +51,16 @@ export function createAvailableModel() {
     };
   }
 
+  if (geminiKey) {
+    return {
+      provider: "gemini" as const,
+      model: createGeminiProvider(geminiKey)(
+        "gemini-3-flash-preview",
+      ),
+    };
+  }
+
   throw new Error(
-    "No AI provider configured. Set GEMINI_API_KEY, GROQ_API_KEY, or OPENROUTER_API_KEY.",
+    "No AI provider configured. Set GROQ_API_KEY, OPENROUTER_API_KEY, or GEMINI_API_KEY.",
   );
 }

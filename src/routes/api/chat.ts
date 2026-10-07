@@ -8,7 +8,7 @@ import {
   type UIMessage,
 } from "ai";
 import { z } from "zod";
-import { createGeminiProvider } from "@/lib/ai-gateway.server";
+import { createAvailableModel } from "@/lib/ai-gateway.server";
 import { MALAWI_LAW_SYSTEM_PROMPT } from "@/lib/malawi-law-prompt";
 import { MALAWI_LAW_DOMAINS } from "@/lib/malawi-law-links";
 import { embedTexts } from "@/lib/embed.server";
@@ -84,14 +84,6 @@ export const Route = createFileRoute("/api/chat")({
           });
         }
 
-        const key = process.env.GEMINI_API_KEY;
-
-        if (!key) {
-          return new Response("Missing GEMINI_API_KEY", {
-            status: 500,
-          });
-        }
-
         const authHeader = request.headers.get("authorization");
 
         const userToken = authHeader?.startsWith("Bearer ")
@@ -99,9 +91,9 @@ export const Route = createFileRoute("/api/chat")({
           : null;
 
         try {
-          const gateway = createGeminiProvider(key);
+          const { model, provider } = createAvailableModel();
 
-          const model = gateway("gemini-3-flash-preview");
+          console.info(`[chat] using ${provider} provider`);
 
           const tools = {
             search_malawi_law: tool({
@@ -290,7 +282,7 @@ export const Route = createFileRoute("/api/chat")({
             status === 429
               ? "Rate limit exceeded. Please wait a moment and try again."
               : status === 402
-                ? "AI credits exhausted. Please check your Gemini API usage."
+                ? "AI provider credits or rate limits were exhausted. Please try again shortly."
                 : "Something went wrong generating the reply.",
             { status },
           );

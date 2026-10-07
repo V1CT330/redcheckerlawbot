@@ -1,6 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
-import { convertToModelMessages, streamText, tool, stepCountIs, type UIMessage } from "ai";
+import {
+  convertToModelMessages,
+  streamText,
+  tool,
+  stepCountIs,
+  type UIMessage,
+} from "ai";
 import { z } from "zod";
 import { createGeminiProvider } from "@/lib/ai-gateway.server";
 import { MALAWI_LAW_SYSTEM_PROMPT } from "@/lib/malawi-law-prompt";
@@ -12,9 +18,17 @@ type ChatRequestBody = { messages?: unknown };
 
 async function firecrawlSearch(query: string) {
   const key = process.env.FIRECRAWL_API_KEY;
-  if (!key) return { results: [], error: "Web search unavailable (missing API key)." };
 
-  const scopedQuery = `${query} (${MALAWI_LAW_DOMAINS.map((d) => `site:${d}`).join(" OR ")})`;
+  if (!key) {
+    return {
+      results: [],
+      error: "Web search unavailable (missing API key).",
+    };
+  }
+
+  const scopedQuery = `${query} (${MALAWI_LAW_DOMAINS.map(
+    (d) => `site:${d}`,
+  ).join(" OR ")})`;
 
   const res = await fetch("https://api.firecrawl.dev/v2/search", {
     method: "POST",
@@ -22,11 +36,15 @@ async function firecrawlSearch(query: string) {
       "Content-Type": "application/json",
       Authorization: `Bearer ${key}`,
     },
-    body: JSON.stringify({ query: scopedQuery, limit: 5 }),
+    body: JSON.stringify({
+      query: scopedQuery,
+      limit: 5,
+    }),
   });
 
   if (!res.ok) {
     const body = await res.text();
+
     return {
       results: [],
       error: `Search error ${res.status}: ${body.slice(0, 200)}`,
@@ -61,29 +79,35 @@ export const Route = createFileRoute("/api/chat")({
         const { messages } = (await request.json()) as ChatRequestBody;
 
         if (!Array.isArray(messages)) {
-          return new Response("Messages are required", { status: 400 });
+          return new Response("Messages are required", {
+            status: 400,
+          });
         }
 
         const key = process.env.GEMINI_API_KEY;
 
         if (!key) {
-          return new Response("Missing GEMINI_API_KEY", { status: 500 });
+          return new Response("Missing GEMINI_API_KEY", {
+            status: 500,
+          });
         }
 
-        // Optional bearer token: enables document search scoped to caller
         const authHeader = request.headers.get("authorization");
+
         const userToken = authHeader?.startsWith("Bearer ")
           ? authHeader.slice(7)
           : null;
 
         try {
           const gateway = createGeminiProvider(key);
+
           const model = gateway("gemini-3-flash-preview");
 
           const tools = {
             search_malawi_law: tool({
               description:
                 "Search the live web across MalawiLII, Malawi Government portals and official legal sites for statutes, cases or policies. Use this when the user asks about a specific Act, section, case, or recent development.",
+
               inputSchema: z.object({
                 query: z
                   .string()
@@ -91,19 +115,28 @@ export const Route = createFileRoute("/api/chat")({
                     "Focused search query, e.g. 'Employment Act section 57 notice period'",
                   ),
               }),
-              execute: async ({ query }) => firecrawlSearch(query),
+
+              execute: async ({ query }) =>
+                firecrawlSearch(query),
             }),
 
             search_uploaded_documents: tool({
               description:
                 "Semantic search over PDFs the signed-in user has uploaded (their private legal library). Use when the user references 'my document', 'the contract I uploaded', or otherwise asks about their own files.",
+
               inputSchema: z.object({
                 query: z
                   .string()
                   .describe(
                     "Question or keywords to look up in the user's uploaded documents.",
                   ),
-                k: z.number().int().min(1).max(10).default(6),
+
+                k: z
+                  .number()
+                  .int()
+                  .min(1)
+                  .max(10)
+                  .default(6),
               }),
 
               execute: async ({ query, k }) => {
@@ -115,7 +148,8 @@ export const Route = createFileRoute("/api/chat")({
                 }
 
                 try {
-                  const pk = process.env.SUPABASE_PUBLISHABLE_KEY!;
+                  const pk =
+                    process.env.SUPABASE_PUBLISHABLE_KEY!;
 
                   const supabase = createClient<Database>(
                     process.env.SUPABASE_URL!,
@@ -125,8 +159,10 @@ export const Route = createFileRoute("/api/chat")({
                         headers: {
                           Authorization: `Bearer ${userToken}`,
                         },
+
                         fetch: (input, init) => {
                           const h = new Headers(init?.headers);
+
                           h.set("apikey", pk);
 
                           return fetch(input, {
@@ -135,6 +171,7 @@ export const Route = createFileRoute("/api/chat")({
                           });
                         },
                       },
+
                       auth: {
                         storage: undefined,
                         persistSession: false,
@@ -143,23 +180,34 @@ export const Route = createFileRoute("/api/chat")({
                     },
                   );
 
-                  // Validate the caller's token; the database scopes results to auth.uid().
-                  const { data: claims, error: claimsErr } =
-                    await supabase.auth.getClaims(userToken);
+                  const {
+                    data: claims,
+                    error: claimsErr,
+                  } = await supabase.auth.getClaims(
+                    userToken,
+                  );
 
-                  if (claimsErr || !claims?.claims?.sub) {
+                  if (
+                    claimsErr ||
+                    !claims?.claims?.sub
+                  ) {
                     return {
                       matches: [],
                       note: "Sign in to search your uploaded documents.",
                     };
                   }
 
-                  const [embedding] = await embedTexts([query]);
+                  const [embedding] =
+                    await embedTexts([query]);
 
-                  const { data, error } = await supabase.rpc(
+                  const {
+                    data,
+                    error,
+                  } = await supabase.rpc(
                     "match_document_chunks",
                     {
-                      query_embedding: embedding as unknown as string,
+                      query_embedding:
+                        embedding as unknown as string,
                       match_count: k,
                     },
                   );
@@ -179,8 +227,13 @@ export const Route = createFileRoute("/api/chat")({
                         similarity: number;
                       }) => ({
                         document: r.title,
-                        snippet: r.content.slice(0, 800),
-                        similarity: Number(r.similarity.toFixed(3)),
+                        snippet: r.content.slice(
+                          0,
+                          800,
+                        ),
+                        similarity: Number(
+                          r.similarity.toFixed(3),
+                        ),
                       }),
                     ),
                   };
@@ -188,7 +241,9 @@ export const Route = createFileRoute("/api/chat")({
                   return {
                     matches: [],
                     error:
-                      e instanceof Error ? e.message : "Search failed",
+                      e instanceof Error
+                        ? e.message
+                        : "Search failed",
                   };
                 }
               },
@@ -202,25 +257,33 @@ export const Route = createFileRoute("/api/chat")({
               MALAWI_LAW_SYSTEM_PROMPT +
               "\n\n## Tools\nYou have two tools:\n- `search_malawi_law` for the live web (MalawiLII, gov.mw). Use it when the user asks about a specific Act, section, case or recent development — then cite the URL you found.\n- `search_uploaded_documents` for the user's own uploaded PDFs. Use it whenever they reference their document/contract/upload; quote the snippet and name the document.\n\nAlways prefer tool-grounded answers over memory when a fact is fetchable.",
 
-            messages: await convertToModelMessages(
-              messages as UIMessage[],
-            ),
+            messages:
+              await convertToModelMessages(
+                messages as UIMessage[],
+              ),
 
             tools,
+
             stopWhen: stepCountIs(6),
           });
 
           return result.toUIMessageStreamResponse({
-            originalMessages: messages as UIMessage[],
+            originalMessages:
+              messages as UIMessage[],
           });
         } catch (err) {
-          console.error("[chat] streamText error", err);
+          console.error(
+            "[chat] streamText error",
+            err,
+          );
 
           const status =
             err &&
             typeof err === "object" &&
             "status" in err
-              ? Number((err as { status?: number }).status) || 500
+              ? Number(
+                  (err as { status?: number }).status,
+                ) || 500
               : 500;
 
           return new Response(

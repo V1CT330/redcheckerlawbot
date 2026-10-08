@@ -12,9 +12,9 @@ import { sendSignupCode, sendRecoveryCode } from "@/lib/auth-email.functions";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Sign in — RedBot Law Checker" },
+      { title: "Sign in | RedBot Law Checker" },
       { name: "description", content: "Sign in or create a RedBot Law Checker account with your email." },
-      { property: "og:title", content: "Sign in — RedBot Law Checker" },
+      { property: "og:title", content: "Sign in | RedBot Law Checker" },
       { property: "og:description", content: "Sign in or create a RedBot Law Checker account with your email." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

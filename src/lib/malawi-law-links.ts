@@ -14,7 +14,7 @@ export const MALAWI_LAW_LINKS: LawLink[] = [
   },
   {
     category: "acts",
-    title: "MalawiLII — Acts of Parliament",
+    title: "MalawiLII: Acts of Parliament",
     url: "https://malawilii.org/legislation/",
     description: "Searchable database of all Malawian Acts and Statutory Instruments.",
   },
@@ -44,7 +44,7 @@ export const MALAWI_LAW_LINKS: LawLink[] = [
   },
   {
     category: "cases",
-    title: "MalawiLII — Judgments",
+    title: "MalawiLII: Judgments",
     url: "https://malawilii.org/judgments/",
     description: "Supreme Court of Appeal and High Court decisions.",
   },
@@ -56,7 +56,7 @@ export const MALAWI_LAW_LINKS: LawLink[] = [
   },
   {
     category: "help",
-    title: "Legal Aid Bureau — 847 (toll-free)",
+    title: "Legal Aid Bureau: 847 (toll-free)",
     url: "https://legalaidbureau.mw/",
     description: "Free legal assistance for those who cannot afford a lawyer.",
   },

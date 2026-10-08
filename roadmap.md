@@ -1,5 +1,7 @@
 # Roadmap
 
+0. [done] Finish replacing unnecessary dash punctuation throughout site copy and AI writing guidance, preserving necessary word hyphens, citations, links and code samples.
+
 1. [blocked] Verify authenticated sign-out end to end: requires a signed-in preview session or approval for a named account. Device sign-out now cancels requests, clears cached data, and opens sign-in.
 2. [done] Developer API: key generation, verified public endpoint, and in-app documentation already implemented.
 

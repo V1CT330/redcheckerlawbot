@@ -262,6 +262,12 @@ export const Route = createFileRoute("/api/chat")({
           return result.toUIMessageStreamResponse({
             originalMessages:
               messages as UIMessage[],
+            onError: (error) => {
+              console.error(`[chat] ${provider} stream error`, error);
+              const msg =
+                error instanceof Error ? error.message : String(error);
+              return `AI provider (${provider}) error: ${msg.slice(0, 300)}`;
+            },
           });
         } catch (err) {
           console.error(

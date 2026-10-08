@@ -90,7 +90,7 @@ function Landing() {
             {
               icon: BookOpen,
               title: "The Constitution, cited",
-              body: "Answers grounded in the 1994 Constitution — with the exact chapter and section.",
+              body: "Answers grounded in the 1994 Constitution, with the exact chapter and section.",
             },
             {
               icon: Scale,
@@ -100,7 +100,7 @@ function Landing() {
             {
               icon: ShieldCheck,
               title: "Speaks your language",
-              body: "Reply in English, Chichewa or Tumbuka — whichever way you ask.",
+              body: "Reply in English, Chichewa or Tumbuka, whichever way you ask.",
             },
           ].map(({ icon: Icon, title, body }) => (
             <div key={title} className="rounded-xl border bg-card p-6 shadow-sm">
@@ -117,7 +117,7 @@ function Landing() {
       <footer className="border-t">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-6 text-sm text-muted-foreground sm:flex-row">
           <p>© {new Date().getFullYear()} RedBot Law Checker · Malawi</p>
-          <p>Educational tool — always consult a lawyer for binding advice.</p>
+          <p>Educational tool. Always consult a lawyer for binding advice.</p>
         </div>
       </footer>
     </div>

@@ -89,7 +89,7 @@ export function DevelopersPanel() {
       {newKey && (
         <div className="mb-4 rounded-md border border-primary/40 bg-primary/5 p-2.5">
           <p className="mb-1.5 font-medium">
-            Copy your key now — it won&apos;t be shown again.
+            Copy your key now. It won&apos;t be shown again.
           </p>
           <div className="flex items-center gap-1.5">
             <code className="flex-1 truncate rounded bg-muted px-2 py-1 text-[11px]">{newKey}</code>

@@ -94,7 +94,7 @@ function Playground({ baseUrl }: { baseUrl: string }) {
           autoComplete="off"
         />
         <p className="text-xs text-muted-foreground">
-          Your key is only sent to this app's own API — it is never stored or sent elsewhere.
+          Your key is only sent to this app's own API. It is never stored or sent elsewhere.
         </p>
       </div>
 
@@ -203,7 +203,7 @@ print(res.json()["answer"])`;
           <p className="text-sm text-muted-foreground">
             Every request needs an API key. Sign in to RedBot Law Checker, open the{" "}
             <strong>API</strong> tab in the sidebar, and create a key. Keys start with{" "}
-            <code className="rounded bg-muted px-1">rlb_sk_</code> and are shown only once — store
+            <code className="rounded bg-muted px-1">rlb_sk_</code> and are shown only once. Store
             yours somewhere safe.
           </p>
           <p className="text-sm text-muted-foreground">
@@ -220,7 +220,7 @@ x-api-key: rlb_sk_YOUR_KEY`}
           <div className="flex gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
             <p>
-              Keep keys secret — never embed them in browser code or public repositories. If a key
+              Keep keys secret. Never embed them in browser code or public repositories. If a key
               leaks, revoke it immediately from the API tab. One key per application is
               recommended.
             </p>
@@ -262,7 +262,7 @@ x-api-key: rlb_sk_YOUR_KEY`}
             </table>
           </div>
 
-          <h3 className="pt-2 text-sm font-semibold">Success response — 200</h3>
+          <h3 className="pt-2 text-sm font-semibold">Success response: 200</h3>
           <CodeBlock title="Response" code={responseExample} />
 
           <h3 className="pt-2 text-sm font-semibold">Error responses</h3>
@@ -286,7 +286,7 @@ x-api-key: rlb_sk_YOUR_KEY`}
                 </tr>
                 <tr className="border-t">
                   <td className="px-3 py-2"><code>429</code></td>
-                  <td className="px-3 py-2">Rate limit exceeded — retry with backoff.</td>
+                  <td className="px-3 py-2">Rate limit exceeded. Retry with backoff.</td>
                 </tr>
                 <tr className="border-t">
                   <td className="px-3 py-2"><code>500</code></td>
@@ -304,7 +304,7 @@ x-api-key: rlb_sk_YOUR_KEY`}
           </h2>
           <p className="text-sm text-muted-foreground">
             Paste your API key and a question to send a real request to the endpoint and inspect
-            the response — status code, timing and full body.
+            the response, including the status code, timing and full body.
           </p>
           <Playground baseUrl={baseUrl} />
         </section>

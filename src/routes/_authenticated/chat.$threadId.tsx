@@ -146,7 +146,7 @@ function ChatWindow({
             <ConversationEmptyState
               icon={<BrandLogo className="w-12" />}
               title="Ask RedBot Law Checker about Malawi law"
-              description="From the Constitution to Acts of Parliament and public policies — get plain-language answers with citations."
+              description="Get plain-language answers with citations, from the Constitution to Acts of Parliament and public policies."
             >
               <div className="mt-6 grid w-full max-w-xl gap-2 sm:grid-cols-2">
                 {SUGGESTIONS.map((s) => (

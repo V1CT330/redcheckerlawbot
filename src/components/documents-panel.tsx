@@ -91,7 +91,7 @@ export function DocumentsPanel() {
           )}
         </Button>
         <p className="mt-1.5 text-[10px] text-muted-foreground">
-          Contracts, judgments, statutes — the bot will search them.
+          The bot will search your contracts, judgments and statutes.
         </p>
       </div>
       <div className="flex-1 overflow-y-auto p-2">

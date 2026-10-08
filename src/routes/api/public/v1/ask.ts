@@ -105,7 +105,7 @@ export const Route = createFileRoute("/api/public/v1/ask")({
             model: lovable.responses("openai/gpt-6-astra"),
             system:
               MALAWI_LAW_SYSTEM_PROMPT +
-              "\n\n## Tools\nYou have one tool: `search_malawi_law` for the live web (MalawiLII, gov.mw). Use it when the user asks about a specific Act, section, case or recent development — then cite the URL you found.",
+              "\n\n## Tools\nYou have one tool: `search_malawi_law` for the live web (MalawiLII, gov.mw). Use it when the user asks about a specific Act, section, case or recent development, then cite the URL you found.",
             prompt: question,
             tools: {
               search_malawi_law: tool({

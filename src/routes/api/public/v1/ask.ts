@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createOpenAI } from "@ai-sdk/openai";
+import { createAvailableModel } from "@/lib/ai-gateway.server";
 import { streamText, tool, stepCountIs } from "ai";
 import { z } from "zod";
 import { MALAWI_LAW_SYSTEM_PROMPT } from "@/lib/malawi-law-prompt";
@@ -64,10 +64,6 @@ export const Route = createFileRoute("/api/public/v1/ask")({
         }
 
         // --- 3. Answer with the same grounded Malawi-law assistant ---------
-        const lovableApiKey = process.env.LOVABLE_API_KEY;
-        if (!lovableApiKey) {
-          return Response.json({ error: "Service is not configured." }, { status: 500 });
-        }
 
         async function firecrawlSearch(query: string) {
           const key = process.env.FIRECRAWL_API_KEY;
@@ -92,41 +88,27 @@ export const Route = createFileRoute("/api/public/v1/ask")({
         }
 
         try {
-          const lovable = createOpenAI({
-            baseURL: "https://ai.gateway.lovable.dev/v1",
-            apiKey: lovableApiKey,
-            headers: {
-              "Lovable-API-Key": lovableApiKey,
-              "X-Lovable-AIG-SDK": "fetch",
-            },
-          });
+          // Use the exact same model and settings as the in-app chat
+          // so API users get the same answers as platform users.
+          const { model } = createAvailableModel();
 
           const result = streamText({
-            model: lovable.responses("openai/gpt-6-astra"),
+            model,
             system:
               MALAWI_LAW_SYSTEM_PROMPT +
-              "\n\n## Tools\nYou have one tool: `search_malawi_law` for the live web (MalawiLII, gov.mw). Use it when the user asks about a specific Act, section, case or recent development, then cite the URL you found.",
+              "\n\n## Tools\nYou have one tool: `search_malawi_law` for the live web (MalawiLII, gov.mw). Use it when the user asks about a specific Act, section, case or recent development, then cite the URL you found.\n\nAlways prefer tool-grounded answers over memory when a fact is fetchable.",
             prompt: question,
             tools: {
               search_malawi_law: tool({
                 description:
-                  "Search the live web across MalawiLII, Malawi Government portals and official legal sites for statutes, cases or policies.",
+                  "Search the live web across MalawiLII, Malawi Government portals and official legal sites for statutes, cases or policies. Use this when the user asks about a specific Act, section, case, or recent development.",
                 inputSchema: z.object({
                   query: z.string().describe("Focused search query, e.g. 'Employment Act section 57 notice period'"),
                 }),
                 execute: async ({ query }) => firecrawlSearch(query),
               }),
             },
-            stopWhen: stepCountIs(4),
-            providerOptions: {
-              openai: {
-                store: false,
-                include: ["reasoning.encrypted_content"],
-                forceReasoning: true,
-                reasoningEffort: "low",
-                reasoningSummary: "concise",
-              },
-            },
+            stopWhen: stepCountIs(6),
           });
 
           const answer = await result.text;

@@ -1,6 +1,9 @@
+
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import {
+  createUIMessageStream,
+  createUIMessageStreamResponse,
   convertToModelMessages,
   streamText,
   tool,
@@ -90,6 +93,131 @@ export const Route = createFileRoute("/api/chat")({
           ? authHeader.slice(7)
           : null;
 
+        // Use RedBot's hosted Developer API when configured on Vercel.
+        // Keep the API key on the server and out of browser code.
+        const redbotApiKey = process.env.REDBOT_API_KEY;
+
+        if (redbotApiKey) {
+          try {
+            const recentMessages = (messages as UIMessage[])
+              .slice(-8)
+              .map((message) => {
+                const text = message.parts
+                  .filter((part) => part.type === "text")
+                  .map((part) => part.text)
+                  .join("\n");
+
+                return text ? `${message.role}: ${text}` : "";
+              })
+              .filter(Boolean)
+              .join("\n\n")
+              .slice(-4000);
+
+            if (!recentMessages.trim()) {
+              return Response.json(
+                { error: "Please enter a legal question." },
+                { status: 400 },
+              );
+            }
+
+            const apiResponse = await fetch(
+              "https://3e09e748-7108-418a-98fa-1468dc59e430.lovableproject.com/api/public/v1/ask",
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${redbotApiKey}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  question: recentMessages,
+                }),
+              },
+            );
+
+            const payload = (await apiResponse.json().catch(() => ({}))) as {
+              answer?: unknown;
+              error?: unknown;
+            };
+
+            if (!apiResponse.ok) {
+              console.error(
+                "[chat] RedBot Developer API error",
+                apiResponse.status,
+                payload.error,
+              );
+
+              return Response.json(
+                {
+                  error:
+                    typeof payload.error === "string"
+                      ? payload.error
+                      : "The RedBot API request failed.",
+                },
+                {
+                  status: apiResponse.status === 429 ? 429 : 502,
+                },
+              );
+            }
+
+            if (typeof payload.answer !== "string") {
+              return Response.json(
+                { error: "The RedBot API returned no answer." },
+                { status: 502 },
+              );
+            }
+
+            const messageId = crypto.randomUUID();
+            const textId = crypto.randomUUID();
+
+            const stream = createUIMessageStream({
+              execute: ({ writer }) => {
+                writer.write({
+                  type: "start",
+                  messageId,
+                });
+
+                writer.write({
+                  type: "text-start",
+                  id: textId,
+                });
+
+                writer.write({
+                  type: "text-delta",
+                  id: textId,
+                  delta: payload.answer as string,
+                });
+
+                writer.write({
+                  type: "text-end",
+                  id: textId,
+                });
+
+                writer.write({
+                  type: "finish",
+                  finishReason: "stop",
+                });
+              },
+            });
+
+            return createUIMessageStreamResponse({ stream });
+          } catch (error) {
+            console.error(
+              "[chat] RedBot Developer API request failed",
+              error,
+            );
+
+            return Response.json(
+              {
+                error:
+                  "Could not reach the RedBot API. Please try again.",
+              },
+              { status: 502 },
+            );
+          }
+        }
+
+        // Original AI-provider path remains unchanged when REDBOT_API_KEY
+        // is not configured.
         try {
           const { model, provider } = createAvailableModel();
 
@@ -108,8 +236,7 @@ export const Route = createFileRoute("/api/chat")({
                   ),
               }),
 
-              execute: async ({ query }) =>
-                firecrawlSearch(query),
+              execute: async ({ query }) => firecrawlSearch(query),
             }),
 
             search_uploaded_documents: tool({
@@ -123,12 +250,7 @@ export const Route = createFileRoute("/api/chat")({
                     "Question or keywords to look up in the user's uploaded documents.",
                   ),
 
-                k: z
-                  .number()
-                  .int()
-                  .min(1)
-                  .max(10)
-                  .default(6),
+                k: z.number().int().min(1).max(10).default(6),
               }),
 
               execute: async ({ query, k }) => {
@@ -140,8 +262,7 @@ export const Route = createFileRoute("/api/chat")({
                 }
 
                 try {
-                  const pk =
-                    process.env.SUPABASE_PUBLISHABLE_KEY!;
+                  const pk = process.env.SUPABASE_PUBLISHABLE_KEY!;
 
                   const supabase = createClient<Database>(
                     process.env.SUPABASE_URL!,
@@ -154,7 +275,6 @@ export const Route = createFileRoute("/api/chat")({
 
                         fetch: (input, init) => {
                           const h = new Headers(init?.headers);
-
                           h.set("apikey", pk);
 
                           return fetch(input, {
@@ -175,31 +295,21 @@ export const Route = createFileRoute("/api/chat")({
                   const {
                     data: claims,
                     error: claimsErr,
-                  } = await supabase.auth.getClaims(
-                    userToken,
-                  );
+                  } = await supabase.auth.getClaims(userToken);
 
-                  if (
-                    claimsErr ||
-                    !claims?.claims?.sub
-                  ) {
+                  if (claimsErr || !claims?.claims?.sub) {
                     return {
                       matches: [],
                       note: "Sign in to search your uploaded documents.",
                     };
                   }
 
-                  const [embedding] =
-                    await embedTexts([query]);
+                  const [embedding] = await embedTexts([query]);
 
-                  const {
-                    data,
-                    error,
-                  } = await supabase.rpc(
+                  const { data, error } = await supabase.rpc(
                     "match_document_chunks",
                     {
-                      query_embedding:
-                        embedding as unknown as string,
+                      query_embedding: embedding as unknown as string,
                       match_count: k,
                     },
                   );
@@ -219,23 +329,15 @@ export const Route = createFileRoute("/api/chat")({
                         similarity: number;
                       }) => ({
                         document: r.title,
-                        snippet: r.content.slice(
-                          0,
-                          800,
-                        ),
-                        similarity: Number(
-                          r.similarity.toFixed(3),
-                        ),
+                        snippet: r.content.slice(0, 800),
+                        similarity: Number(r.similarity.toFixed(3)),
                       }),
                     ),
                   };
                 } catch (e) {
                   return {
                     matches: [],
-                    error:
-                      e instanceof Error
-                        ? e.message
-                        : "Search failed",
+                    error: e instanceof Error ? e.message : "Search failed",
                   };
                 }
               },
@@ -249,10 +351,7 @@ export const Route = createFileRoute("/api/chat")({
               MALAWI_LAW_SYSTEM_PROMPT +
               "\n\n## Tools\nYou have two tools:\n- `search_malawi_law` for the live web (MalawiLII, gov.mw). Use it when the user asks about a specific Act, section, case or recent development, then cite the URL you found.\n- `search_uploaded_documents` for the user's own uploaded PDFs. Use it whenever they reference their document/contract/upload; quote the snippet and name the document.\n\nAlways prefer tool-grounded answers over memory when a fact is fetchable.",
 
-            messages:
-              await convertToModelMessages(
-                messages as UIMessage[],
-              ),
+            messages: await convertToModelMessages(messages as UIMessage[]),
 
             tools,
 
@@ -260,28 +359,23 @@ export const Route = createFileRoute("/api/chat")({
           });
 
           return result.toUIMessageStreamResponse({
-            originalMessages:
-              messages as UIMessage[],
+            originalMessages: messages as UIMessage[],
             onError: (error) => {
               console.error(`[chat] ${provider} stream error`, error);
               const msg =
                 error instanceof Error ? error.message : String(error);
+
               return `AI provider (${provider}) error: ${msg.slice(0, 300)}`;
             },
           });
         } catch (err) {
-          console.error(
-            "[chat] streamText error",
-            err,
-          );
+          console.error("[chat] streamText error", err);
 
           const status =
             err &&
             typeof err === "object" &&
             "status" in err
-              ? Number(
-                  (err as { status?: number }).status,
-                ) || 500
+              ? Number((err as { status?: number }).status) || 500
               : 500;
 
           return new Response(

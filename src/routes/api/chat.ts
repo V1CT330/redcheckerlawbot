@@ -1,9 +1,6 @@
-
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import {
-  createUIMessageStream,
-  createUIMessageStreamResponse,
   convertToModelMessages,
   streamText,
   tool,
@@ -93,131 +90,6 @@ export const Route = createFileRoute("/api/chat")({
           ? authHeader.slice(7)
           : null;
 
-        // Use RedBot's hosted Developer API when configured on Vercel.
-        // Keep the API key on the server and out of browser code.
-        const redbotApiKey = process.env.REDBOT_API_KEY;
-
-        if (redbotApiKey) {
-          try {
-            const recentMessages = (messages as UIMessage[])
-              .slice(-8)
-              .map((message) => {
-                const text = message.parts
-                  .filter((part) => part.type === "text")
-                  .map((part) => part.text)
-                  .join("\n");
-
-                return text ? `${message.role}: ${text}` : "";
-              })
-              .filter(Boolean)
-              .join("\n\n")
-              .slice(-4000);
-
-            if (!recentMessages.trim()) {
-              return Response.json(
-                { error: "Please enter a legal question." },
-                { status: 400 },
-              );
-            }
-
-            const apiResponse = await fetch(
-              "https://redcheckerlawbot.lovable.app/api/public/v1/ask",
-              {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${redbotApiKey}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  question: recentMessages,
-                }),
-              },
-            );
-
-            const payload = (await apiResponse.json().catch(() => ({}))) as {
-              answer?: unknown;
-              error?: unknown;
-            };
-
-            if (!apiResponse.ok) {
-              console.error(
-                "[chat] RedBot Developer API error",
-                apiResponse.status,
-                payload.error,
-              );
-
-              return Response.json(
-                {
-                  error:
-                    typeof payload.error === "string"
-                      ? payload.error
-                      : "The RedBot API request failed.",
-                },
-                {
-                  status: apiResponse.status === 429 ? 429 : 502,
-                },
-              );
-            }
-
-            if (typeof payload.answer !== "string") {
-              return Response.json(
-                { error: "The RedBot API returned no answer." },
-                { status: 502 },
-              );
-            }
-
-            const messageId = crypto.randomUUID();
-            const textId = crypto.randomUUID();
-
-            const stream = createUIMessageStream({
-              execute: ({ writer }) => {
-                writer.write({
-                  type: "start",
-                  messageId,
-                });
-
-                writer.write({
-                  type: "text-start",
-                  id: textId,
-                });
-
-                writer.write({
-                  type: "text-delta",
-                  id: textId,
-                  delta: payload.answer as string,
-                });
-
-                writer.write({
-                  type: "text-end",
-                  id: textId,
-                });
-
-                writer.write({
-                  type: "finish",
-                  finishReason: "stop",
-                });
-              },
-            });
-
-            return createUIMessageStreamResponse({ stream });
-          } catch (error) {
-            console.error(
-              "[chat] RedBot Developer API request failed",
-              error,
-            );
-
-            return Response.json(
-              {
-                error:
-                  "Could not reach the RedBot API. Please try again.",
-              },
-              { status: 502 },
-            );
-          }
-        }
-
-        // Original AI-provider path remains unchanged when REDBOT_API_KEY
-        // is not configured.
         try {
           const { model, provider } = createAvailableModel();
 
@@ -391,4 +263,3 @@ export const Route = createFileRoute("/api/chat")({
     },
   },
 });
-                

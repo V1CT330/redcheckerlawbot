@@ -54,6 +54,7 @@ export function AppSidebar() {
       qc.invalidateQueries({ queryKey: ["threads"] });
       if (activeId === threadId) navigate({ to: "/chat" });
     },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not delete conversation"),
   });
 
   const [signingOut, setSigningOut] = useState(false);
@@ -105,6 +106,7 @@ export function AppSidebar() {
           ))}
         </div>
       </SidebarHeader>
+
       <SidebarContent>
         {tab === "chats" && (
           <>
@@ -145,13 +147,15 @@ export function AppSidebar() {
                         </SidebarMenuButton>
                         <button
                           type="button"
-                          aria-label="Delete chat"
+                          aria-label={`Delete chat: ${t.title || "Untitled"}`}
+                          title="Delete conversation"
+                          disabled={deleteM.isPending}
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             if (confirm("Delete this conversation?")) deleteM.mutate(t.id);
                           }}
-                          className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1 text-sidebar-foreground/50 opacity-0 transition group-hover/item:opacity-100 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1 text-sidebar-foreground/70 opacity-100 transition hover:bg-sidebar-accent hover:text-sidebar-foreground disabled:opacity-50"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -167,6 +171,7 @@ export function AppSidebar() {
         {tab === "law" && <LawLinksPanel />}
         {tab === "dev" && <DevelopersPanel />}
       </SidebarContent>
+
       <SidebarFooter className="border-t border-sidebar-border">
         <Button
           variant="ghost"
@@ -179,4 +184,4 @@ export function AppSidebar() {
       </SidebarFooter>
     </Sidebar>
   );
-}
+                }

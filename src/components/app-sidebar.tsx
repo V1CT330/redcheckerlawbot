@@ -13,18 +13,26 @@ import {
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { createThread, deleteThread, listThreads } from "@/lib/threads.functions";
+import {
+  createThread,
+  deleteThread,
+  listThreads,
+} from "@/lib/threads.functions";
 import { Button } from "@/components/ui/button";
-import { LogOut, MessageSquarePlus, MoreHorizontal, Trash2 } from "lucide-react";
+import {
+  LogOut,
+  MessageSquarePlus,
+  MoreHorizontal,
+  Trash2,
+} from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { LawLinksPanel } from "@/components/law-links-panel";
-import { DevelopersPanel } from "@/components/developers-panel";
 import { useState } from "react";
 
-type Tab = "chats" | "library" | "law" | "dev";
+type Tab = "chats" | "library" | "law";
 
 export function AppSidebar() {
   const navigate = useNavigate();
@@ -71,7 +79,9 @@ export function AppSidebar() {
       toast.success("Chat deleted");
     },
     onError: (e) =>
-      toast.error(e instanceof Error ? e.message : "Could not delete conversation"),
+      toast.error(
+        e instanceof Error ? e.message : "Could not delete conversation",
+      ),
   });
 
   const signOut = async () => {
@@ -108,13 +118,12 @@ export function AppSidebar() {
           </span>
         </Link>
 
-        <div className="mt-2 grid grid-cols-4 gap-1 rounded-md bg-sidebar-accent/40 p-1 text-[11px]">
+        <div className="mt-2 grid grid-cols-3 gap-1 rounded-md bg-sidebar-accent/40 p-1 text-[11px]">
           {(
             [
               ["chats", "Chats"],
               ["library", "Library"],
               ["law", "Law"],
-              ["dev", "API"],
             ] as [Tab, string][]
           ).map(([id, label]) => (
             <button
@@ -253,7 +262,6 @@ export function AppSidebar() {
 
         {tab === "library" && <DocumentsPanel />}
         {tab === "law" && <LawLinksPanel />}
-        {tab === "dev" && <DevelopersPanel />}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border">
@@ -269,4 +277,4 @@ export function AppSidebar() {
       </SidebarFooter>
     </Sidebar>
   );
-}
+    }

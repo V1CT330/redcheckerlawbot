@@ -1,3 +1,4 @@
+
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -389,65 +390,5 @@ export const Route = createFileRoute("/api/chat")({
       },
     },
   },
-});e(0, 800),
-                        similarity: Number(r.similarity.toFixed(3)),
-                      }),
-                    ),
-                  };
-                } catch (e) {
-                  return {
-                    matches: [],
-                    error: e instanceof Error ? e.message : "Search failed",
-                  };
-                }
-              },
-            }),
-          };
-
-          const result = streamText({
-            model,
-
-            system:
-              MALAWI_LAW_SYSTEM_PROMPT +
-              "\n\n## Tools\nYou have two tools:\n- `search_malawi_law` for the live web (MalawiLII, gov.mw). Use it when the user asks about a specific Act, section, case or recent development, then cite the URL you found.\n- `search_uploaded_documents` for the user's own uploaded PDFs. Use it whenever they reference their document/contract/upload; quote the snippet and name the document.\n\nAlways prefer tool-grounded answers over memory when a fact is fetchable.",
-
-            messages: await convertToModelMessages(messages as UIMessage[]),
-
-            tools,
-
-            stopWhen: stepCountIs(6),
-          });
-
-          return result.toUIMessageStreamResponse({
-            originalMessages: messages as UIMessage[],
-            onError: (error) => {
-              console.error(`[chat] ${provider} stream error`, error);
-              const msg =
-                error instanceof Error ? error.message : String(error);
-
-              return `AI provider (${provider}) error: ${msg.slice(0, 300)}`;
-            },
-          });
-        } catch (err) {
-          console.error("[chat] streamText error", err);
-
-          const status =
-            err &&
-            typeof err === "object" &&
-            "status" in err
-              ? Number((err as { status?: number }).status) || 500
-              : 500;
-
-          return new Response(
-            status === 429
-              ? "Rate limit exceeded. Please wait a moment and try again."
-              : status === 402
-                ? "AI provider credits or rate limits were exhausted. Please try again shortly."
-                : "Something went wrong generating the reply.",
-            { status },
-          );
-        }
-      },
-    },
-  },
 });
+                

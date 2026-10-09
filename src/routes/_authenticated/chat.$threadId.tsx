@@ -149,7 +149,6 @@ function ChatWindow({
   const [uploadingPdf, setUploadingPdf] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const savedIdsRef = useRef<Set<string>>(
     new Set(initial.map((message) => message.id)),
   );
@@ -215,20 +214,6 @@ function ChatWindow({
 
     void sendMessage({ text });
     setInput("");
-  };
-
-  const openPdfPicker = () => {
-    if (uploadingPdf) return;
-
-    const fileInput = fileInputRef.current;
-
-    if (!fileInput) {
-      toast.error("The file picker is unavailable. Please reload the page.");
-      return;
-    }
-
-    // Keep the file picker opening directly from the user's tap.
-    fileInput.click();
   };
 
   const handlePdfSelected = async (
@@ -383,33 +368,25 @@ function ChatWindow({
 
             <PromptInputFooter className="justify-between">
               <div className="flex min-w-0 items-center gap-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,application/pdf"
-                  className="sr-only"
-                  tabIndex={-1}
-                  aria-label="Choose a PDF to attach"
-                  onChange={handlePdfSelected}
-                />
+                <label className="relative inline-flex h-10 shrink-0 cursor-pointer items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent">
+                  <input
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    disabled={uploadingPdf}
+                    aria-label="Attach a PDF to your legal library"
+                    className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                    onChange={handlePdfSelected}
+                  />
 
-                <button
-                  type="button"
-                  onClick={openPdfPicker}
-                  disabled={uploadingPdf}
-                  aria-label="Attach PDF"
-                  title="Attach PDF"
-                  className="inline-flex h-10 min-w-10 shrink-0 items-center justify-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {uploadingPdf ? (
-                    <LoaderCircle className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <Plus className="h-5 w-5" />
-                  )}
-                  <span className="hidden xs:inline">
+                  <span className="pointer-events-none inline-flex items-center gap-2">
+                    {uploadingPdf ? (
+                      <LoaderCircle className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <Plus className="h-5 w-5" />
+                    )}
                     {uploadingPdf ? "Processing…" : "Attach PDF"}
                   </span>
-                </button>
+                </label>
 
                 {uploadingPdf && (
                   <span className="truncate text-xs text-muted-foreground">
@@ -433,4 +410,4 @@ function ChatWindow({
       </div>
     </div>
   );
-  }
+}

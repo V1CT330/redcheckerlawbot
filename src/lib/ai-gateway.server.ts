@@ -1,11 +1,28 @@
+
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 
-export type AIProviderName = "gemini" | "groq" | "openrouter";
+export type AIProviderName =
+  | "lovable"
+  | "gemini"
+  | "groq"
+  | "openrouter";
+
+export function createLovableProvider(apiKey: string) {
+  return createOpenAICompatible({
+    name: "lovable",
+    baseURL: "https://ai.gateway.lovable.dev/v1",
+    apiKey,
+    headers: {
+      "Lovable-API-Key": apiKey,
+    },
+  });
+}
 
 export function createGeminiProvider(apiKey: string) {
   return createOpenAICompatible({
     name: "google-gemini",
-    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+    baseURL:
+      "https://generativelanguage.googleapis.com/v1beta/openai/",
     apiKey,
   });
 }
@@ -24,21 +41,37 @@ export function createOpenRouterProvider(apiKey: string) {
     baseURL: "https://openrouter.ai/api/v1",
     apiKey,
     headers: {
-      "HTTP-Referer": "https://redcheckerlawbot.vercel.app",
+      "HTTP-Referer":
+        "https://redcheckerlawbot.vercel.app",
       "X-Title": "Red Checker Law Bot",
     },
   });
 }
 
 export function createAvailableModel() {
+  const lovableKey = process.env.LOVABLE_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;
   const openRouterKey = process.env.OPENROUTER_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
 
+  // Lovable AI is the primary chat provider.
+  if (lovableKey) {
+    return {
+      provider: "lovable" as const,
+      model: createLovableProvider(lovableKey)(
+        "google/gemini-3.7-flash",
+      ),
+    };
+  }
+
+  // Keep existing providers as backups when Lovable
+  // is not configured.
   if (groqKey) {
     return {
       provider: "groq" as const,
-      model: createGroqProvider(groqKey)("openai/gpt-oss-120b"),
+      model: createGroqProvider(groqKey)(
+        "openai/gpt-oss-120b",
+      ),
     };
   }
 
@@ -61,6 +94,7 @@ export function createAvailableModel() {
   }
 
   throw new Error(
-    "No AI provider configured. Set GROQ_API_KEY, OPENROUTER_API_KEY, or GEMINI_API_KEY.",
+    "No AI provider configured. Set LOVABLE_API_KEY, " +
+      "GROQ_API_KEY, OPENROUTER_API_KEY, or GEMINI_API_KEY.",
   );
 }

@@ -15,7 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { createThread, deleteThread, listThreads } from "@/lib/threads.functions";
 import { Button } from "@/components/ui/button";
-import { LogOut, MessageSquarePlus, Trash2 } from "lucide-react";
+import { LogOut, MessageSquarePlus, MoreHorizontal, Trash2 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -31,45 +31,68 @@ export function AppSidebar() {
   const qc = useQueryClient();
   const params = useParams({ strict: false }) as { threadId?: string };
   const activeId = params.threadId;
+
   const [tab, setTab] = useState<Tab>("chats");
+  const [managingThreadId, setManagingThreadId] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
 
   const list = useServerFn(listThreads);
   const create = useServerFn(createThread);
   const del = useServerFn(deleteThread);
 
-  const threadsQ = useQuery({ queryKey: ["threads"], queryFn: () => list() });
+  const threadsQ = useQuery({
+    queryKey: ["threads"],
+    queryFn: () => list(),
+  });
 
   const createM = useMutation({
     mutationFn: () => create({ data: {} }),
     onSuccess: (t) => {
       qc.invalidateQueries({ queryKey: ["threads"] });
-      if (t?.id) navigate({ to: "/chat/$threadId", params: { threadId: t.id } });
+      if (t?.id) {
+        setManagingThreadId(null);
+        navigate({ to: "/chat/$threadId", params: { threadId: t.id } });
+      }
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not create chat"),
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Could not create chat"),
   });
 
   const deleteM = useMutation({
     mutationFn: (threadId: string) => del({ data: { threadId } }),
     onSuccess: (_data, threadId) => {
       qc.invalidateQueries({ queryKey: ["threads"] });
-      if (activeId === threadId) navigate({ to: "/chat" });
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not delete conversation"),
-  });
+      setManagingThreadId(null);
 
-  const [signingOut, setSigningOut] = useState(false);
+      if (activeId === threadId) {
+        navigate({ to: "/chat" });
+      }
+
+      toast.success("Chat deleted");
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Could not delete conversation"),
+  });
 
   const signOut = async () => {
     if (signingOut) return;
+
     setSigningOut(true);
+
     try {
       await qc.cancelQueries();
       qc.clear();
+
       const { error } = await supabase.auth.signOut({ scope: "local" });
       if (error) throw error;
+
       await navigate({ to: "/auth", replace: true });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not sign out. Please try again.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not sign out. Please try again.",
+      );
     } finally {
       setSigningOut(false);
     }
@@ -84,17 +107,23 @@ export function AppSidebar() {
             RedBot Law Checker
           </span>
         </Link>
+
         <div className="mt-2 grid grid-cols-4 gap-1 rounded-md bg-sidebar-accent/40 p-1 text-[11px]">
-          {([
-            ["chats", "Chats"],
-            ["library", "Library"],
-            ["law", "Law"],
-            ["dev", "API"],
-          ] as [Tab, string][]).map(([id, label]) => (
+          {(
+            [
+              ["chats", "Chats"],
+              ["library", "Library"],
+              ["law", "Law"],
+              ["dev", "API"],
+            ] as [Tab, string][]
+          ).map(([id, label]) => (
             <button
               key={id}
               type="button"
-              onClick={() => setTab(id)}
+              onClick={() => {
+                setTab(id);
+                setManagingThreadId(null);
+              }}
               className={`rounded px-2 py-1 font-medium transition ${
                 tab === id
                   ? "bg-sidebar text-sidebar-foreground shadow-sm"
@@ -120,45 +149,99 @@ export function AppSidebar() {
                 New chat
               </Button>
             </div>
+
             <SidebarGroup>
               <SidebarGroupLabel>Your chats</SidebarGroupLabel>
+
               <SidebarGroupContent>
                 <SidebarMenu>
                   {threadsQ.isLoading && (
-                    <div className="px-3 py-2 text-xs text-sidebar-foreground/60">Loading…</div>
+                    <div className="px-3 py-2 text-xs text-sidebar-foreground/60">
+                      Loading…
+                    </div>
                   )}
+
+                  {threadsQ.isError && (
+                    <div className="px-3 py-2 text-xs text-destructive">
+                      Could not load chats. Please refresh.
+                    </div>
+                  )}
+
                   {threadsQ.data?.length === 0 && (
                     <div className="px-3 py-2 text-xs text-sidebar-foreground/60">
                       No chats yet.
                     </div>
                   )}
+
                   {threadsQ.data?.map((t) => (
                     <SidebarMenuItem key={t.id} className="group/item">
-                      <div className="relative flex items-center">
-                        <SidebarMenuButton asChild isActive={activeId === t.id} className="pr-8">
-                          <Link
-                            to="/chat/$threadId"
-                            params={{ threadId: t.id }}
-                            className="truncate"
-                            title={t.title}
+                      <div className="w-full min-w-0">
+                        <div className="flex min-w-0 items-center gap-1">
+                          <SidebarMenuButton
+                            asChild
+                            isActive={activeId === t.id}
+                            className="min-w-0 flex-1"
                           >
-                            {t.title || "Untitled"}
-                          </Link>
-                        </SidebarMenuButton>
-                        <button
-                          type="button"
-                          aria-label={`Delete chat: ${t.title || "Untitled"}`}
-                          title="Delete conversation"
-                          disabled={deleteM.isPending}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            if (confirm("Delete this conversation?")) deleteM.mutate(t.id);
-                          }}
-                          className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1 text-sidebar-foreground/70 opacity-100 transition hover:bg-sidebar-accent hover:text-sidebar-foreground disabled:opacity-50"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                            <Link
+                              to="/chat/$threadId"
+                              params={{ threadId: t.id }}
+                              title={t.title || "Untitled"}
+                              onClick={() => setManagingThreadId(null)}
+                            >
+                              <span className="block truncate">
+                                {t.title || "Untitled"}
+                              </span>
+                            </Link>
+                          </SidebarMenuButton>
+
+                          <button
+                            type="button"
+                            aria-label={`Chat options: ${t.title || "Untitled"}`}
+                            title="Chat options"
+                            aria-expanded={managingThreadId === t.id}
+                            onClick={() =>
+                              setManagingThreadId((current) =>
+                                current === t.id ? null : t.id,
+                              )
+                            }
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 transition hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </button>
+                        </div>
+
+                        {managingThreadId === t.id && (
+                          <div className="mx-1 mt-1 rounded-md border border-sidebar-border bg-sidebar-accent/30 p-2">
+                            <p className="mb-2 text-xs text-sidebar-foreground/70">
+                              Delete this conversation?
+                            </p>
+
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                disabled={deleteM.isPending}
+                                onClick={() => setManagingThreadId(null)}
+                              >
+                                Cancel
+                              </Button>
+
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                disabled={deleteM.isPending}
+                                onClick={() => deleteM.mutate(t.id)}
+                              >
+                                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                                {deleteM.isPending
+                                  ? "Deleting…"
+                                  : "Confirm delete"}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </SidebarMenuItem>
                   ))}
@@ -167,6 +250,7 @@ export function AppSidebar() {
             </SidebarGroup>
           </>
         )}
+
         {tab === "library" && <DocumentsPanel />}
         {tab === "law" && <LawLinksPanel />}
         {tab === "dev" && <DevelopersPanel />}
@@ -179,9 +263,10 @@ export function AppSidebar() {
           disabled={signingOut}
           className="justify-start text-sidebar-foreground hover:bg-sidebar-accent"
         >
-          <LogOut className="mr-2 h-4 w-4" /> {signingOut ? "Signing out…" : "Sign out"}
+          <LogOut className="mr-2 h-4 w-4" />
+          {signingOut ? "Signing out…" : "Sign out"}
         </Button>
       </SidebarFooter>
     </Sidebar>
   );
-                }
+}

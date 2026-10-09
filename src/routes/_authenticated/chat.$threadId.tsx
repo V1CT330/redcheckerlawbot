@@ -1,4 +1,3 @@
-
 import { createFileRoute } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
@@ -119,18 +118,18 @@ function ChatThread() {
       key={threadId}
       threadId={threadId}
       initial={(JSON.parse(initialQ.data.json) as UIMessage[]) ?? []}
-      onSave={async (u, a) => {
+      onSave={async (userMessage, assistantMessage) => {
         try {
           await save({
             data: {
               threadId,
-              userMessage: u,
-              assistantMessage: a,
+              userMessage,
+              assistantMessage,
             },
           });
-          qc.invalidateQueries({ queryKey: ["threads"] });
-        } catch (e) {
-          console.error(e);
+          await qc.invalidateQueries({ queryKey: ["threads"] });
+        } catch (error) {
+          console.error("Could not save chat messages:", error);
         }
       }}
     />
@@ -152,7 +151,7 @@ function ChatWindow({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const savedIdsRef = useRef<Set<string>>(
-    new Set(initial.map((m) => m.id)),
+    new Set(initial.map((message) => message.id)),
   );
 
   const uploadPdf = useServerFn(ingestPdf);
@@ -168,53 +167,75 @@ function ChatWindow({
         return token ? { Authorization: `Bearer ${token}` } : {};
       },
     }),
-    onError: (err) => toast.error(err.message || "Something went wrong"),
+    onError: (error) => {
+      console.error("Chat request failed:", error);
+      toast.error(error.message || "Something went wrong.");
+    },
   });
 
   useEffect(() => {
     if (status !== "ready") return;
 
-    const last = messages[messages.length - 1];
+    const lastMessage = messages[messages.length - 1];
 
     if (
-      !last ||
-      last.role !== "assistant" ||
-      savedIdsRef.current.has(last.id)
+      !lastMessage ||
+      lastMessage.role !== "assistant" ||
+      savedIdsRef.current.has(lastMessage.id)
     ) {
       return;
     }
 
-    const priorUser = [...messages]
+    const previousUserMessage = [...messages]
       .reverse()
-      .find((m) => m.role === "user");
+      .find((message) => message.role === "user");
 
-    if (!priorUser || savedIdsRef.current.has(priorUser.id)) return;
+    if (
+      !previousUserMessage ||
+      savedIdsRef.current.has(previousUserMessage.id)
+    ) {
+      return;
+    }
 
-    savedIdsRef.current.add(priorUser.id);
-    savedIdsRef.current.add(last.id);
-    void onSave(priorUser, last);
+    savedIdsRef.current.add(previousUserMessage.id);
+    savedIdsRef.current.add(lastMessage.id);
+    void onSave(previousUserMessage, lastMessage);
   }, [status, messages, onSave]);
 
   useEffect(() => {
-    if (status === "ready") textareaRef.current?.focus();
+    if (status === "ready") {
+      textareaRef.current?.focus();
+    }
   }, [status, threadId]);
 
-  const handleSubmit = (msg: PromptInputMessage) => {
-    const text = (msg.text ?? "").trim();
+  const handleSubmit = (message: PromptInputMessage) => {
+    const text = (message.text ?? "").trim();
 
     if (!text) return;
 
     void sendMessage({ text });
     setInput("");
+  };
 
-    setTimeout(() => textareaRef.current?.focus(), 0);
+  const openPdfPicker = () => {
+    if (uploadingPdf) return;
+
+    const fileInput = fileInputRef.current;
+
+    if (!fileInput) {
+      toast.error("The file picker is unavailable. Please reload the page.");
+      return;
+    }
+
+    // Keep the file picker opening directly from the user's tap.
+    fileInput.click();
   };
 
   const handlePdfSelected = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
 
     if (!file) return;
 
@@ -223,6 +244,11 @@ function ChatWindow({
       !file.name.toLowerCase().endsWith(".pdf")
     ) {
       toast.error("Please select a PDF file.");
+      return;
+    }
+
+    if (file.size === 0) {
+      toast.error("The selected PDF is empty.");
       return;
     }
 
@@ -236,9 +262,9 @@ function ChatWindow({
     try {
       const { text, pageCount } = await extractPdf(file);
 
-      if (!text.trim()) {
+      if (!text.trim() || text.trim().length < 20) {
         throw new Error(
-          "No readable text found. This may be a scanned PDF.",
+          "No readable text found. This PDF may be scanned or image-only.",
         );
       }
 
@@ -254,13 +280,15 @@ function ChatWindow({
       });
 
       toast.success(
-        "PDF processed and added to your legal library. You can now ask RedBot about it.",
+        "PDF added to your legal library. You can now ask RedBot about it.",
       );
     } catch (error) {
+      console.error("Chat PDF upload failed:", error);
+
       toast.error(
         error instanceof Error
           ? error.message
-          : "Could not process PDF.",
+          : "Could not process the PDF.",
       );
     } finally {
       setUploadingPdf(false);
@@ -270,8 +298,8 @@ function ChatWindow({
   const isBusy = status === "submitted" || status === "streaming";
 
   return (
-    <div className="flex h-full flex-col">
-      <Conversation className="flex-1">
+    <div className="flex h-full min-h-0 flex-col">
+      <Conversation className="min-h-0 flex-1">
         <ConversationContent className="mx-auto w-full max-w-3xl">
           {messages.length === 0 ? (
             <ConversationEmptyState
@@ -280,44 +308,50 @@ function ChatWindow({
               description="Get plain-language answers with citations, from the Constitution to Acts of Parliament and public policies."
             >
               <div className="mt-6 grid w-full max-w-xl gap-2 sm:grid-cols-2">
-                {SUGGESTIONS.map((s) => (
+                {SUGGESTIONS.map((suggestion) => (
                   <button
-                    key={s}
+                    key={suggestion}
                     type="button"
                     onClick={() => {
-                      void sendMessage({ text: s });
+                      void sendMessage({ text: suggestion });
                     }}
                     className="rounded-lg border bg-card p-3 text-left text-sm text-foreground shadow-sm transition hover:border-primary hover:bg-primary/5"
                   >
                     <Scale className="mb-2 h-4 w-4 text-primary" />
-                    {s}
+                    {suggestion}
                   </button>
                 ))}
               </div>
             </ConversationEmptyState>
           ) : (
-            messages.map((m) => (
-              <Message key={m.id} from={m.role}>
+            messages.map((message) => (
+              <Message key={message.id} from={message.role}>
                 <MessageContent>
-                  {m.role === "assistant" ? (
+                  {message.role === "assistant" ? (
                     <MessageResponse>
-                      {m.parts
-                        .map((p) => (p.type === "text" ? p.text : ""))
+                      {message.parts
+                        .map((part) =>
+                          part.type === "text" ? part.text : "",
+                        )
                         .join("")}
                     </MessageResponse>
                   ) : (
                     <div className="whitespace-pre-wrap">
-                      {m.parts
-                        .map((p) => (p.type === "text" ? p.text : ""))
+                      {message.parts
+                        .map((part) =>
+                          part.type === "text" ? part.text : "",
+                        )
                         .join("")}
                     </div>
                   )}
                 </MessageContent>
 
                 <MessageCopyButton
-                  from={m.role}
-                  text={m.parts
-                    .map((p) => (p.type === "text" ? p.text : ""))
+                  from={message.role}
+                  text={message.parts
+                    .map((part) =>
+                      part.type === "text" ? part.text : "",
+                    )
                     .join("")}
                 />
               </Message>
@@ -336,44 +370,49 @@ function ChatWindow({
         <ConversationScrollButton />
       </Conversation>
 
-      <div className="border-t bg-background/80 backdrop-blur">
-        <div className="mx-auto w-full max-w-3xl p-4">
+      <div className="shrink-0 border-t bg-background/95 backdrop-blur">
+        <div className="mx-auto w-full max-w-3xl p-3 sm:p-4">
           <PromptInput onSubmit={handleSubmit}>
             <PromptInputTextarea
               ref={textareaRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(event) => setInput(event.target.value)}
               placeholder="Ask about a section of the Constitution, an Act, your rights…"
               autoFocus
             />
 
             <PromptInputFooter className="justify-between">
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept=".pdf,application/pdf"
-                  className="hidden"
+                  className="sr-only"
+                  tabIndex={-1}
+                  aria-label="Choose a PDF to attach"
                   onChange={handlePdfSelected}
                 />
 
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={openPdfPicker}
                   disabled={uploadingPdf}
                   aria-label="Attach PDF"
                   title="Attach PDF"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-md border transition hover:bg-accent disabled:opacity-50"
+                  className="inline-flex h-10 min-w-10 shrink-0 items-center justify-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {uploadingPdf ? (
                     <LoaderCircle className="h-5 w-5 animate-spin" />
                   ) : (
                     <Plus className="h-5 w-5" />
                   )}
+                  <span className="hidden xs:inline">
+                    {uploadingPdf ? "Processing…" : "Attach PDF"}
+                  </span>
                 </button>
 
                 {uploadingPdf && (
-                  <span className="text-xs text-muted-foreground">
+                  <span className="truncate text-xs text-muted-foreground">
                     Processing PDF…
                   </span>
                 )}
@@ -394,5 +433,4 @@ function ChatWindow({
       </div>
     </div>
   );
-                                     }
-    
+  }

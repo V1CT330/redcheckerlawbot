@@ -1,11 +1,12 @@
+
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarHeader,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -168,7 +169,7 @@ export function AppSidebar() {
 
         <nav
           aria-label="Workspace navigation"
-          className="mt-2 flex flex-col gap-1 rounded-md bg-sidebar-accent/40 p-1 text-sm"
+          className="mt-2 flex flex-row flex-wrap gap-1 rounded-md bg-sidebar-accent/40 p-1 text-sm"
         >
           {tabs.map(([id, label]) => (
             <button
@@ -176,7 +177,7 @@ export function AppSidebar() {
               type="button"
               aria-current={tab === id ? "page" : undefined}
               onClick={() => selectTab(id)}
-              className={`w-full rounded px-3 py-2 text-left font-medium transition ${
+              className={`flex-1 rounded px-3 py-2 text-center text-xs font-medium transition ${
                 tab === id
                   ? "bg-sidebar text-sidebar-foreground shadow-sm"
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
@@ -204,7 +205,6 @@ export function AppSidebar() {
 
             <SidebarGroup>
               <SidebarGroupLabel>Your chats</SidebarGroupLabel>
-
               <SidebarGroupContent>
                 <SidebarMenu>
                   {threadsQ.isLoading && (
@@ -270,7 +270,6 @@ export function AppSidebar() {
                             <p className="mb-2 text-xs text-sidebar-foreground/70">
                               Delete this conversation?
                             </p>
-
                             <div className="flex items-center justify-end gap-2">
                               <Button
                                 type="button"
@@ -281,7 +280,6 @@ export function AppSidebar() {
                               >
                                 Cancel
                               </Button>
-
                               <Button
                                 type="button"
                                 variant="destructive"
@@ -311,7 +309,16 @@ export function AppSidebar() {
 
         {tab === "settings" && (
           <div className="p-4 text-sm text-muted-foreground">
-            Account settings will appear here.
+            <p>Account settings</p>
+            <p className="mt-2">
+              View your account information and security details.
+            </p>
+            <Link
+              to="/chat/settings"
+              className="mt-3 inline-block underline underline-offset-4"
+            >
+              Open Settings page
+            </Link>
           </div>
         )}
       </SidebarContent>
@@ -329,4 +336,4 @@ export function AppSidebar() {
       </SidebarFooter>
     </Sidebar>
   );
-}
+                            }

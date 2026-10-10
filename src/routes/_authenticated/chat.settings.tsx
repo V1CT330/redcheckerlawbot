@@ -12,6 +12,7 @@ function SettingsPage() {
   const [provider, setProvider] = useState("");
   const [createdAt, setCreatedAt] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -22,7 +23,14 @@ function SettingsPage() {
 
         if (error) throw error;
 
-        if (mounted && data.user) {
+        if (!data.user) {
+          if (mounted) {
+            setLoadError("No signed-in account was found.");
+          }
+          return;
+        }
+
+        if (mounted) {
           setEmail(data.user.email ?? "No email available");
 
           const authProvider =
@@ -41,6 +49,12 @@ function SettingsPage() {
         }
       } catch (error) {
         console.error("Could not load account settings:", error);
+
+        if (mounted) {
+          setLoadError(
+            "Account information could not be loaded. Please refresh and try again.",
+          );
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -65,7 +79,9 @@ function SettingsPage() {
       </div>
 
       <section className="mb-6 rounded-xl border bg-card p-5">
-        <h2 className="text-lg font-semibold">Account information</h2>
+        <h2 className="text-lg font-semibold">
+          Account information
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Details associated with your signed-in account.
         </p>
@@ -74,27 +90,33 @@ function SettingsPage() {
           <p className="mt-5 text-sm text-muted-foreground">
             Loading account information...
           </p>
+        ) : loadError ? (
+          <p role="alert" className="mt-5 text-sm text-destructive">
+            {loadError}
+          </p>
         ) : (
           <div className="mt-5 space-y-4">
             <div>
               <p className="text-sm text-muted-foreground">
                 Email address
               </p>
-              <p className="mt-1 break-all font-medium">{email || "Unavailable"}</p>
+              <p className="mt-1 break-all font-medium">
+                {email}
+              </p>
             </div>
 
             <div>
               <p className="text-sm text-muted-foreground">
                 Sign-in method
               </p>
-              <p className="mt-1 font-medium">{provider || "Unavailable"}</p>
+              <p className="mt-1 font-medium">{provider}</p>
             </div>
 
             <div>
               <p className="text-sm text-muted-foreground">
                 Account created
               </p>
-              <p className="mt-1 font-medium">{createdAt || "Unavailable"}</p>
+              <p className="mt-1 font-medium">{createdAt}</p>
             </div>
           </div>
         )}
@@ -103,22 +125,21 @@ function SettingsPage() {
       <section className="mb-6 rounded-xl border bg-card p-5">
         <h2 className="text-lg font-semibold">Security</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Keep your account secure. Your sign-in is managed through
-          Supabase Authentication.
+          Your account sign-in is managed through Supabase Authentication.
         </p>
         <p className="mt-3 text-sm">
-          If you use Google to sign in, manage your password and
-          security through your Google account.
+          If you use Google to sign in, manage your password and security
+          settings through your Google account.
         </p>
       </section>
 
       <section className="rounded-xl border bg-card p-5">
         <h2 className="text-lg font-semibold">About RedBot</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          RedBot Law Checker helps users explore legal information and
-          work with legal documents.
+          RedBot Law Checker helps users explore legal information and work
+          with legal documents.
         </p>
       </section>
     </main>
   );
-    }
+          }

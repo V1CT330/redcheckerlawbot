@@ -283,6 +283,14 @@ function ChatWindow({
 
   const isBusy = status === "submitted" || status === "streaming";
 
+  const openPdfPicker = () => {
+    const fileInput = pdfInputRef.current;
+
+    if (!fileInput || uploadingPdf) return;
+
+    fileInput.click();
+  };
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <Conversation className="min-h-0 flex-1">
@@ -372,10 +380,10 @@ function ChatWindow({
                 <input
                   ref={pdfInputRef}
                   type="file"
-                  accept=".pdf,application/pdf"
+                  accept="application/pdf,.pdf"
                   disabled={uploadingPdf}
                   aria-label="Choose a PDF"
-                  className="hidden"
+                  className="sr-only"
                   onChange={handlePdfSelected}
                 />
 
@@ -384,7 +392,7 @@ function ChatWindow({
                   disabled={uploadingPdf}
                   aria-label={uploadingPdf ? "Processing PDF" : "Add PDF"}
                   title={uploadingPdf ? "Processing PDF" : "Add PDF"}
-                  onClick={() => pdfInputRef.current?.click()}
+                  onClick={openPdfPicker}
                   className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-input bg-background text-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {uploadingPdf ? (
@@ -416,4 +424,4 @@ function ChatWindow({
       </div>
     </div>
   );
-          }
+    }

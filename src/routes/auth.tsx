@@ -1,4 +1,3 @@
-
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +7,13 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { BrandLogo } from "@/components/brand-logo";
 import { useServerFn } from "@tanstack/react-start";
-import { sendSignupCode, sendRecoveryCode } from "@/lib/auth-email.functions";
+import {
+  sendSignupCode,
+  sendRecoveryCode,
+} from "@/lib/auth-email.functions";
+
+type AuthMode = "signin" | "signup" | "verify" | "forgot" | "reset";
+type VerifyType = "signup" | "magiclink";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -16,12 +21,14 @@ export const Route = createFileRoute("/auth")({
       { title: "Sign in | RedBot Law Checker" },
       {
         name: "description",
-        content: "Sign in or create a RedBot Law Checker account with Google or email.",
+        content:
+          "Sign in or create a RedBot Law Checker account with Google or email.",
       },
       { property: "og:title", content: "Sign in | RedBot Law Checker" },
       {
         property: "og:description",
-        content: "Sign in or create a RedBot Law Checker account with Google or email.",
+        content:
+          "Sign in or create a RedBot Law Checker account with Google or email.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -32,19 +39,16 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
-
-  const [mode, setMode] = useState<
-    "signin" | "signup" | "verify" | "forgot" | "reset"
-  >("signin");
-
-  const [verifyType, setVerifyType] = useState<"signup" | "magiclink">("signup");
   const signupCodeFn = useServerFn(sendSignupCode);
   const recoveryCodeFn = useServerFn(sendRecoveryCode);
 
+  const [mode, setMode] = useState<AuthMode>("signin");
+  const [verifyType, setVerifyType] = useState<VerifyType>("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
 
   const redirected = useRef(false);
 
@@ -53,26 +57,45 @@ function AuthPage() {
 
     redirected.current = true;
 
-    navigate({ to: "/chat", replace: true }).catch(() => {
+    void navigate({ to: "/chat", replace: true }).catch((error) => {
       redirected.current = false;
+      console.error("Navigation to chat failed:", error);
+      toast.error("Signed in, but we couldn't open your chats. Please try again.");
     });
   }, [navigate]);
 
-  // Redirect users who already have a valid session.
+  // Check for an existing session before displaying the sign-in form.
   useEffect(() => {
     let active = true;
 
-    supabase.auth.getUser().then(({ data }) => {
-      if (active && data.user) goToChat();
-    });
+    const checkSession = async () => {
+      try {
+        const { data, error } = await supabase.auth.getUser();
+
+        if (!active) return;
+
+        if (!error && data.user) {
+          goToChat();
+        }
+      } catch (error) {
+        console.error("Session check failed:", error);
+      } finally {
+        if (active) {
+          setCheckingSession(false);
+        }
+      }
+    };
+
+    void checkSession();
 
     return () => {
       active = false;
     };
   }, [goToChat]);
 
-  // Sign in or register through Google OAuth.
   const onGoogleSignIn = async () => {
+    if (loading) return;
+
     setLoading(true);
 
     try {
@@ -84,54 +107,70 @@ function AuthPage() {
       });
 
       if (error) throw error;
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Google sign-in failed";
 
-      toast.error(message);
+      // Supabase normally redirects the browser to Google.
+      // If it does not, allow the user to try again.
+      setLoading(false);
+    } catch (error) {
+      console.error("Google sign-in failed:", error);
+
+      toast.error(
+        error instanceof Error ? error.message : "Google sign-in failed.",
+      );
       setLoading(false);
     }
   };
 
-  const onEmail = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onEmail = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (loading) return;
+
     setLoading(true);
 
     try {
       if (mode === "signup") {
-        const r = await signupCodeFn({ data: { email, password } });
+        const result = await signupCodeFn({
+          data: { email: email.trim(), password },
+        });
 
-        if (!r.ok) throw new Error(r.error);
+        if (!result.ok) {
+          throw new Error(result.error);
+        }
 
-        setVerifyType(r.type === "magiclink" ? "magiclink" : "signup");
-        toast.success(
-          "RedBot Law Checker sent a verification code to your email.",
+        setVerifyType(
+          result.type === "magiclink" ? "magiclink" : "signup",
         );
         setCode("");
         setMode("verify");
+
+        toast.success(
+          "A verification code has been sent to your email.",
+        );
         return;
       }
 
       if (mode === "forgot") {
-        await recoveryCodeFn({ data: { email } });
+        await recoveryCodeFn({ data: { email: email.trim() } });
 
-        toast.success(
-          "If that account exists, RedBot Law Checker sent a reset code.",
-        );
         setCode("");
         setPassword("");
         setMode("reset");
+
+        toast.success(
+          "If that account exists, a password reset code has been sent.",
+        );
         return;
       }
 
       if (mode === "reset") {
-        const { error } = await supabase.auth.verifyOtp({
-          email,
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          email: email.trim(),
           token: code.trim(),
           type: "recovery",
         });
 
-        if (error) throw error;
+        if (verifyError) throw verifyError;
 
         const { error: updateError } = await supabase.auth.updateUser({
           password,
@@ -139,49 +178,78 @@ function AuthPage() {
 
         if (updateError) throw updateError;
 
-        toast.success("Password updated.");
-      } else if (mode === "verify") {
+        toast.success("Your password has been updated.");
+        setPassword("");
+        setCode("");
+        goToChat();
+        return;
+      }
+
+      if (mode === "verify") {
         const { error } = await supabase.auth.verifyOtp({
-          email,
+          email: email.trim(),
           token: code.trim(),
           type: verifyType,
         });
 
         if (error) throw error;
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
 
-        if (error) throw error;
+        toast.success("Your email has been verified.");
+        goToChat();
+        return;
       }
 
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) throw error;
+
       goToChat();
-    } catch (err) {
+    } catch (error) {
       const message =
-        err instanceof Error ? err.message : "Authentication failed";
+        error instanceof Error ? error.message : "Authentication failed.";
+
+      console.error("Email authentication failed:", error);
 
       if (/email not confirmed/i.test(message)) {
-        const r = await signupCodeFn({ data: { email, password } });
+        try {
+          const result = await signupCodeFn({
+            data: { email: email.trim(), password },
+          });
 
-        if (r.ok) {
-          setVerifyType(r.type === "magiclink" ? "magiclink" : "signup");
+          if (!result.ok) {
+            throw new Error(result.error);
+          }
+
+          setVerifyType(
+            result.type === "magiclink" ? "magiclink" : "signup",
+          );
+          setCode("");
+          setMode("verify");
+
+          toast.info(
+            "Your email isn't verified yet. A new verification code has been sent.",
+          );
+        } catch (sendError) {
+          console.error("Verification email failed:", sendError);
+
+          toast.error(
+            sendError instanceof Error
+              ? sendError.message
+              : "We couldn't send a verification code. Please try again.",
+          );
         }
-
-        toast.info(
-          "Your email isn't verified yet. RedBot Law Checker sent you a new code.",
-        );
-        setMode("verify");
+      } else if (/invalid login credentials/i.test(message)) {
+        toast.error("Wrong email or password.");
+      } else if (
+        /expired|invalid/i.test(message) &&
+        (mode === "verify" || mode === "reset")
+      ) {
+        toast.error("That code is wrong or expired. Request a new one.");
       } else {
-        toast.error(
-          /invalid login credentials/i.test(message)
-            ? "Wrong email or password."
-            : /expired|invalid/i.test(message) &&
-                (mode === "verify" || mode === "reset")
-              ? "That code is wrong or expired. Request a new one."
-              : message,
-        );
+        toast.error(message);
       }
     } finally {
       setLoading(false);
@@ -189,26 +257,54 @@ function AuthPage() {
   };
 
   const resend = async () => {
+    if (loading) return;
+
     setLoading(true);
 
     try {
       if (mode === "reset") {
-        await recoveryCodeFn({ data: { email } });
+        await recoveryCodeFn({ data: { email: email.trim() } });
       } else {
-        const r = await signupCodeFn({ data: { email, password } });
+        const result = await signupCodeFn({
+          data: { email: email.trim(), password },
+        });
 
-        if (!r.ok) throw new Error(r.error);
+        if (!result.ok) {
+          throw new Error(result.error);
+        }
+
+        setVerifyType(
+          result.type === "magiclink" ? "magiclink" : "signup",
+        );
       }
 
-      toast.success("New code sent from RedBot Law Checker.");
-    } catch (err) {
+      setCode("");
+      toast.success("A new code has been sent.");
+    } catch (error) {
+      console.error("Resending authentication code failed:", error);
+
       toast.error(
-        err instanceof Error ? err.message : "Could not send code",
+        error instanceof Error ? error.message : "Could not send the code.",
       );
     } finally {
       setLoading(false);
     }
   };
+
+  const changeEmail = () => {
+    setCode("");
+    setMode(mode === "reset" ? "forgot" : "signup");
+  };
+
+  if (checkingSession) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <p className="text-sm text-muted-foreground">
+          Checking your session...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
@@ -259,13 +355,11 @@ function AuthPage() {
               >
                 <span
                   aria-hidden="true"
-                  className="mr-2 font-bold text-base"
+                  className="mr-2 text-base font-bold"
                 >
                   G
                 </span>
-                {loading
-                  ? "Connecting..."
-                  : "Continue with Google"}
+                {loading ? "Connecting..." : "Continue with Google"}
               </Button>
 
               <div className="my-5 flex items-center gap-3">
@@ -287,7 +381,7 @@ function AuthPage() {
                   type="email"
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(event) => setEmail(event.target.value)}
                   autoComplete="email"
                 />
               </div>
@@ -303,8 +397,8 @@ function AuthPage() {
                     minLength={6}
                     maxLength={10}
                     value={code}
-                    onChange={(e) =>
-                      setCode(e.target.value.replace(/\D/g, ""))
+                    onChange={(event) =>
+                      setCode(event.target.value.replace(/\D/g, ""))
                     }
                     className="text-center text-lg tracking-[0.5em]"
                   />
@@ -319,7 +413,7 @@ function AuthPage() {
                       required
                       minLength={6}
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(event) => setPassword(event.target.value)}
                       autoComplete="new-password"
                     />
                   </div>
@@ -334,7 +428,7 @@ function AuthPage() {
                     type="email"
                     required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(event) => setEmail(event.target.value)}
                     autoComplete="email"
                   />
                 </div>
@@ -347,11 +441,9 @@ function AuthPage() {
                     required
                     minLength={6}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(event) => setPassword(event.target.value)}
                     autoComplete={
-                      mode === "signin"
-                        ? "current-password"
-                        : "new-password"
+                      mode === "signin" ? "current-password" : "new-password"
                     }
                   />
                 </div>
@@ -412,9 +504,8 @@ function AuthPage() {
               <button
                 type="button"
                 className="font-medium text-primary hover:underline"
-                onClick={() =>
-                  setMode(mode === "reset" ? "forgot" : "signup")
-                }
+                onClick={changeEmail}
+                disabled={loading}
               >
                 Change email
               </button>
@@ -429,9 +520,7 @@ function AuthPage() {
                   setMode(mode === "signin" ? "signup" : "signin")
                 }
               >
-                {mode === "signin"
-                  ? "Create an account"
-                  : "Sign in"}
+                {mode === "signin" ? "Create an account" : "Sign in"}
               </button>
             </p>
           )}
@@ -439,5 +528,4 @@ function AuthPage() {
       </div>
     </div>
   );
-                                                   }
-      
+            }

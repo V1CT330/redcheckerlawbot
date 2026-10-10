@@ -11,8 +11,8 @@ export function BrandLogo({ className }: { className?: string }) {
     >
       <img
         src={logo}
-        alt="Red Checker Law Bot"
-        className="absolute inset-0 h-full w-full object-contain"
+        alt="RedBot"
+        className="absolute inset-0 h-full w-full object-cover"
       />
     </span>
   );

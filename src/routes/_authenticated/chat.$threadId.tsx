@@ -374,23 +374,24 @@ function ChatWindow({
                   type="file"
                   accept=".pdf,application/pdf"
                   disabled={uploadingPdf}
-                  aria-label="Choose a PDF to add to your legal library"
-                  className="sr-only"
+                  aria-label="Choose a PDF"
+                  className="hidden"
                   onChange={handlePdfSelected}
                 />
 
                 <button
                   type="button"
                   disabled={uploadingPdf}
+                  aria-label={uploadingPdf ? "Processing PDF" : "Add PDF"}
+                  title={uploadingPdf ? "Processing PDF" : "Add PDF"}
                   onClick={() => pdfInputRef.current?.click()}
-                  className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-input bg-background px-2 text-sm text-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-input bg-background text-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {uploadingPdf ? (
                     <LoaderCircle className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-5 w-5" />
                   )}
-                  {uploadingPdf ? "Processing…" : "Add PDF"}
                 </button>
 
                 {uploadingPdf && (
@@ -415,4 +416,4 @@ function ChatWindow({
       </div>
     </div>
   );
-            }
+          }

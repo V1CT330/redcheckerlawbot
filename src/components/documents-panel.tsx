@@ -1,3 +1,4 @@
+
 import { useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -175,6 +176,12 @@ export function DocumentsPanel() {
         {docsQ.isError && (
           <div className="p-2 text-xs text-destructive">
             <p>Could not load your documents.</p>
+            <p className="mt-1 break-words">
+              Error:{" "}
+              {docsQ.error instanceof Error
+                ? docsQ.error.message
+                : String(docsQ.error)}
+            </p>
             <button
               type="button"
               className="mt-1 underline"
@@ -243,4 +250,4 @@ export function DocumentsPanel() {
       </div>
     </div>
   );
-          }
+}

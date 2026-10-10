@@ -12,7 +12,9 @@ export function BrandLogo({ className }: { className?: string }) {
       <img
         src={logo}
         alt="RedBot"
-        className="absolute inset-0 h-full w-full object-cover"
+        width={512}
+        height={512}
+        className="absolute left-0 top-0"
       />
     </span>
   );

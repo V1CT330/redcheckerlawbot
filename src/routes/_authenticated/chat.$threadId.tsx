@@ -149,6 +149,7 @@ function ChatWindow({
   const [uploadingPdf, setUploadingPdf] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
   const savedIdsRef = useRef<Set<string>>(
     new Set(initial.map((message) => message.id)),
   );
@@ -368,25 +369,29 @@ function ChatWindow({
 
             <PromptInputFooter className="justify-between">
               <div className="flex min-w-0 items-center gap-2">
-                <label className="relative inline-flex h-10 shrink-0 cursor-pointer items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent">
-                  <input
-                    type="file"
-                    accept=".pdf,application/pdf"
-                    disabled={uploadingPdf}
-                    aria-label="Attach a PDF to your legal library"
-                    className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-                    onChange={handlePdfSelected}
-                  />
+                <input
+                  ref={pdfInputRef}
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  disabled={uploadingPdf}
+                  aria-label="Choose a PDF to add to your legal library"
+                  className="sr-only"
+                  onChange={handlePdfSelected}
+                />
 
-                  <span className="pointer-events-none inline-flex items-center gap-2">
-                    {uploadingPdf ? (
-                      <LoaderCircle className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <Plus className="h-5 w-5" />
-                    )}
-                    {uploadingPdf ? "Processing…" : "Attach PDF"}
-                  </span>
-                </label>
+                <button
+                  type="button"
+                  disabled={uploadingPdf}
+                  onClick={() => pdfInputRef.current?.click()}
+                  className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-input bg-background px-2 text-sm text-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {uploadingPdf ? (
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
+                  {uploadingPdf ? "Processing…" : "Add PDF"}
+                </button>
 
                 {uploadingPdf && (
                   <span className="truncate text-xs text-muted-foreground">
@@ -410,4 +415,4 @@ function ChatWindow({
       </div>
     </div>
   );
-}
+            }

@@ -1,3 +1,4 @@
+
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -176,7 +177,7 @@ export const Route = createFileRoute("/api/chat")({
                     };
                   }
 
-                  const [embedding] = await embedTexts([query]);
+                  const [embedding] = await embedTexts([query], "query");
 
                   const { data, error } = await supabase.rpc(
                     "match_document_chunks",
@@ -263,3 +264,4 @@ export const Route = createFileRoute("/api/chat")({
     },
   },
 });
+    

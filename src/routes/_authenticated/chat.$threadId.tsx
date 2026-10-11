@@ -79,20 +79,6 @@ async function extractPdf(
   };
 }
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      const result = reader.result as string;
-      resolve(result.split(",")[1] ?? "");
-    };
-
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
-
 function ChatThread() {
   const { threadId } = Route.useParams();
   const qc = useQueryClient();
@@ -245,6 +231,8 @@ function ChatWindow({
 
     setUploadingPdf(true);
 
+    let storagePath: string | null = null;
+
     try {
       const { text, pageCount } = await extractPdf(file);
 
@@ -254,22 +242,55 @@ function ChatWindow({
         );
       }
 
-      const fileBase64 = await fileToBase64(file);
+      const { data: authData, error: authError } =
+        await supabase.auth.getUser();
+
+      if (authError || !authData.user) {
+        throw new Error("Please sign in again before uploading a PDF.");
+      }
+
+      const id = crypto.randomUUID();
+      storagePath = `${authData.user.id}/${id}.pdf`;
+
+      const { error: storageError } = await supabase.storage
+        .from("law-pdfs")
+        .upload(storagePath, file, {
+          contentType: "application/pdf",
+          upsert: false,
+        });
+
+      if (storageError) {
+        throw new Error(`PDF upload failed: ${storageError.message}`);
+      }
 
       await uploadPdf({
         data: {
+          id,
           title: file.name.replace(/\.pdf$/i, ""),
           text,
           pageCount,
-          fileBase64,
+          sizeBytes: file.size,
+          storagePath,
         },
       });
+
+      storagePath = null;
 
       toast.success(
         "PDF added to your legal library. You can now ask RedBot about it.",
       );
     } catch (error) {
       console.error("Chat PDF upload failed:", error);
+
+      if (storagePath) {
+        const { error: cleanupError } = await supabase.storage
+          .from("law-pdfs")
+          .remove([storagePath]);
+
+        if (cleanupError) {
+          console.error("Could not clean up uploaded PDF:", cleanupError);
+        }
+      }
 
       toast.error(
         error instanceof Error
@@ -424,4 +445,4 @@ function ChatWindow({
       </div>
     </div>
   );
-    }
+      }

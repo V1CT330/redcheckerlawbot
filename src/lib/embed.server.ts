@@ -1,4 +1,3 @@
-
 /** Server-only helper: create embeddings with NVIDIA NIM. */
 export type EmbeddingInputType = "passage" | "query";
 

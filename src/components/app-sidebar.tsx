@@ -10,6 +10,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   Link,
@@ -41,6 +42,7 @@ import { useEffect, useState } from "react";
 type Tab = "chats" | "library" | "law" | "settings";
 
 export function AppSidebar() {
+  const { isMobile, setOpen, setOpenMobile } = useSidebar();
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
@@ -117,6 +119,13 @@ export function AppSidebar() {
 
     if (nextTab === "settings") {
       void navigate({ to: "/chat/settings" });
+
+      if (isMobile) {
+        setOpenMobile(false);
+      } else {
+        setOpen(false);
+      }
+
       return;
     }
 
@@ -306,21 +315,6 @@ export function AppSidebar() {
 
         {tab === "library" && <DocumentsPanel />}
         {tab === "law" && <LawLinksPanel />}
-
-        {tab === "settings" && (
-          <div className="p-4 text-sm text-muted-foreground">
-            <p>Account settings</p>
-            <p className="mt-2">
-              View your account information and security details.
-            </p>
-            <Link
-              to="/chat/settings"
-              className="mt-3 inline-block underline underline-offset-4"
-            >
-              Open Settings page
-            </Link>
-          </div>
-        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border">
@@ -336,4 +330,5 @@ export function AppSidebar() {
       </SidebarFooter>
     </Sidebar>
   );
-                            }
+    }
+    

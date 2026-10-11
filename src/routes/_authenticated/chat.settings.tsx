@@ -12,11 +12,11 @@ import {
   Monitor,
   Moon,
   Palette,
+  RotateCcw,
   ShieldCheck,
   Sun,
   Trash2,
   UserRound,
-  RotateCcw,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/chat/settings")({
@@ -50,7 +50,7 @@ function normalizeHex(value: string) {
   return value.toUpperCase();
 }
 
-// Convert HEX into the HSL channels expected by the app's CSS variables.
+// Return a complete CSS HSL color, not just its individual channels.
 function hexToHsl(hex: string) {
   const normalized = normalizeHex(hex);
   const red = parseInt(normalized.slice(1, 3), 16) / 255;
@@ -66,8 +66,7 @@ function hexToHsl(hex: string) {
   const lightness = (max + min) / 2;
 
   if (delta !== 0) {
-    saturation =
-      delta / (1 - Math.abs(2 * lightness - 1));
+    saturation = delta / (1 - Math.abs(2 * lightness - 1));
 
     switch (max) {
       case red:
@@ -84,7 +83,25 @@ function hexToHsl(hex: string) {
 
   if (hue < 0) hue += 360;
 
-  return `${hue.toFixed(2)} ${(saturation * 100).toFixed(2)}% ${(lightness * 100).toFixed(2)}%`;
+  return `hsl(${hue.toFixed(2)} ${(saturation * 100).toFixed(2)}% ${(lightness * 100).toFixed(2)}%)`;
+}
+
+// Choose readable foreground text for the selected accent color.
+function accentForeground(hex: string) {
+  const normalized = normalizeHex(hex);
+  const channels = [1, 3, 5].map(
+    (index) => parseInt(normalized.slice(index, index + 2), 16) / 255,
+  );
+
+  const [r, g, b] = channels.map((channel) =>
+    channel <= 0.04045
+      ? channel / 12.92
+      : Math.pow((channel + 0.055) / 1.055, 2.4),
+  );
+
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+  return luminance > 0.42 ? "hsl(222 47% 11%)" : "hsl(0 0% 100%)";
 }
 
 function SettingsPage() {
@@ -104,6 +121,7 @@ function SettingsPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
+  // Load the signed-in user's account details.
   useEffect(() => {
     let mounted = true;
 
@@ -159,7 +177,7 @@ function SettingsPage() {
     };
   }, []);
 
-  // Restore saved appearance settings.
+  // Restore appearance preferences saved on this device.
   useEffect(() => {
     try {
       const savedTheme = localStorage.getItem(THEME_KEY);
@@ -187,12 +205,13 @@ function SettingsPage() {
     }
   }, []);
 
-  // Apply the theme and accent to the existing app design tokens.
+  // Apply appearance to the app's existing design tokens.
   useEffect(() => {
     if (!preferencesLoaded) return;
 
     const root = document.documentElement;
     const hsl = hexToHsl(accent);
+    const foreground = accentForeground(accent);
 
     root.classList.toggle("dark", theme === "dark");
 
@@ -200,6 +219,8 @@ function SettingsPage() {
     root.style.setProperty("--ring", hsl);
     root.style.setProperty("--sidebar-primary", hsl);
     root.style.setProperty("--sidebar-ring", hsl);
+    root.style.setProperty("--primary-foreground", foreground);
+    root.style.setProperty("--sidebar-primary-foreground", foreground);
 
     try {
       localStorage.setItem(THEME_KEY, theme);
@@ -223,6 +244,7 @@ function SettingsPage() {
     setHexInput(DEFAULT_ACCENT);
   };
 
+  // Account deletion requires a secure, deployed Supabase Edge Function.
   const deleteAccount = async () => {
     setDeleteError("");
 
@@ -233,28 +255,37 @@ function SettingsPage() {
     if (!confirmed) return;
 
     const confirmation = window.prompt(
-      'To confirm permanent deletion, type DELETE.',
+      "To confirm permanent deletion, type DELETE.",
     );
 
     if (confirmation !== "DELETE") {
-      setDeleteError("Account deletion cancelled. Confirmation did not match.");
+      setDeleteError(
+        "Account deletion cancelled. Confirmation did not match.",
+      );
       return;
     }
 
     setDeleting(true);
 
     try {
-      // Requires a deployed and tested Supabase Edge Function.
-      const { error } = await supabase.functions.invoke("delete-account");
+      const { data, error } =
+        await supabase.functions.invoke("delete-account");
 
       if (error) throw error;
+
+      if (data?.error) {
+        throw new Error(String(data.error));
+      }
 
       const { error: signOutError } = await supabase.auth.signOut({
         scope: "local",
       });
 
       if (signOutError) {
-        console.error("Local sign-out failed after deletion:", signOutError);
+        console.error(
+          "Local sign-out failed after deletion:",
+          signOutError,
+        );
       }
 
       await navigate({ to: "/auth", replace: true });
@@ -284,7 +315,10 @@ function SettingsPage() {
       </header>
 
       {/* Appearance */}
-      <section id="appearance" className="scroll-mt-6 rounded-xl border bg-card p-5">
+      <section
+        id="appearance"
+        className="scroll-mt-6 rounded-xl border bg-card p-5"
+      >
         <div className="flex items-start gap-3">
           <Palette className="mt-1 h-5 w-5 shrink-0 text-primary" />
           <div>
@@ -311,7 +345,9 @@ function SettingsPage() {
                 <Sun className="h-5 w-5" />
                 Light
               </span>
-              {theme === "light" && <Check className="h-4 w-4 text-primary" />}
+              {theme === "light" && (
+                <Check className="h-4 w-4 text-primary" />
+              )}
             </button>
 
             <button
@@ -326,11 +362,14 @@ function SettingsPage() {
                 <Moon className="h-5 w-5" />
                 Dark
               </span>
-              {theme === "dark" && <Check className="h-4 w-4 text-primary" />}
+              {theme === "dark" && (
+                <Check className="h-4 w-4 text-primary" />
+              )}
             </button>
           </div>
         </div>
 
+        {/* Full accent-color spectrum */}
         <div className="mt-7">
           <p className="text-sm font-medium">Accent color</p>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -386,6 +425,7 @@ function SettingsPage() {
                   }
                 }}
                 placeholder="#3B82F6"
+                aria-label="Enter an accent color in HEX format"
                 className="w-full rounded-md border bg-background px-3 py-2 text-sm uppercase outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
@@ -395,9 +435,7 @@ function SettingsPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-medium">Live preview</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {accent}
-                </p>
+                <p className="mt-1 text-xs text-muted-foreground">{accent}</p>
               </div>
               <span
                 className="h-10 w-10 rounded-full border"
@@ -409,8 +447,11 @@ function SettingsPage() {
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                className="rounded-md px-4 py-2 text-sm font-medium text-white shadow-sm"
-                style={{ backgroundColor: accent }}
+                className="rounded-md px-4 py-2 text-sm font-medium shadow-sm"
+                style={{
+                  backgroundColor: accent,
+                  color: accentForeground(accent),
+                }}
               >
                 Preview button
               </button>
@@ -440,7 +481,10 @@ function SettingsPage() {
       </section>
 
       {/* Account */}
-      <section id="account" className="scroll-mt-6 rounded-xl border bg-card p-5">
+      <section
+        id="account"
+        className="scroll-mt-6 rounded-xl border bg-card p-5"
+      >
         <div className="flex items-start gap-3">
           <UserRound className="mt-1 h-5 w-5 shrink-0 text-primary" />
           <div>
@@ -483,7 +527,10 @@ function SettingsPage() {
       </section>
 
       {/* Privacy and security */}
-      <section id="privacy" className="scroll-mt-6 rounded-xl border bg-card p-5">
+      <section
+        id="privacy"
+        className="scroll-mt-6 rounded-xl border bg-card p-5"
+      >
         <div className="flex items-start gap-3">
           <ShieldCheck className="mt-1 h-5 w-5 shrink-0 text-primary" />
           <div>
@@ -530,8 +577,12 @@ function SettingsPage() {
         </div>
       </section>
 
+      
       {/* Help */}
-      <section id="help" className="scroll-mt-6 rounded-xl border bg-card p-5">
+      <section
+        id="help"
+        className="scroll-mt-6 rounded-xl border bg-card p-5"
+      >
         <div className="flex items-start gap-3">
           <CircleHelp className="mt-1 h-5 w-5 shrink-0 text-primary" />
           <div>
@@ -546,16 +597,18 @@ function SettingsPage() {
           <div>
             <p className="text-sm font-medium">Sign-in problems</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Check your connection, refresh the page, and try signing in
-              again if necessary.
+              Check your internet connection and try signing in again if
+              necessary.
             </p>
           </div>
 
           <div>
-            <p className="text-sm font-medium">Chats or documents not loading</p>
+            <p className="text-sm font-medium">
+              Chats or documents not loading
+            </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Refresh RedBot and retry. If the problem continues, keep a note
-              of the error message.
+              Check your connection and try opening the chat or document
+              again. If the problem continues, note any error message.
             </p>
           </div>
 
@@ -566,20 +619,14 @@ function SettingsPage() {
               sources. AI responses can contain mistakes.
             </p>
           </div>
-
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition hover:bg-muted"
-          >
-            Refresh RedBot
-            <ChevronRight className="h-4 w-4" />
-          </button>
         </div>
       </section>
 
       {/* About */}
-      <section id="about" className="scroll-mt-6 rounded-xl border bg-card p-5">
+      <section
+        id="about"
+        className="scroll-mt-6 rounded-xl border bg-card p-5"
+      >
         <div className="flex items-start gap-3">
           <Info className="mt-1 h-5 w-5 shrink-0 text-primary" />
           <div>
@@ -603,87 +650,46 @@ function SettingsPage() {
         </div>
       </section>
 
-            {/* Delete account */}
+      {/* Delete account */}
       <section
         id="delete-account"
-        className="rounded-xl border border-destructive/30 p-6 space-y-4"
+        className="scroll-mt-6 space-y-4 rounded-xl border border-destructive/30 bg-card p-5"
       >
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold text-destructive">
-            Delete Account
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Permanently delete your RedBot account and associated data.
-            This action cannot be undone.
+        <div className="flex items-start gap-3">
+          <Trash2 className="mt-1 h-5 w-5 shrink-0 text-destructive" />
+          <div>
+            <h2 className="text-lg font-semibold">Delete Account</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Permanently remove your RedBot account. This action cannot be
+              undone.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-3 rounded-lg bg-destructive/5 p-4">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+          <p className="text-sm leading-6 text-muted-foreground">
+            Account deletion may permanently remove your account data. Make
+            sure you understand what will be deleted before proceeding.
           </p>
         </div>
 
-        <Button
-          variant="destructive"
-          onClick={() => setShowDeleteDialog(true)}
-          disabled={isDeleting}
+        {deleteError && (
+          <p role="alert" className="text-sm text-destructive">
+            {deleteError}
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={() => void deleteAccount()}
+          disabled={deleting}
+          className="inline-flex items-center gap-2 rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <Trash2 className="mr-2 h-4 w-4" />
-          Delete My Account
-        </Button>
+          <Trash2 className="h-4 w-4" />
+          {deleting ? "Deleting account..." : "Permanently delete account"}
+        </button>
       </section>
-
-      <AlertDialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Are you absolutely sure?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete your account and associated data.
-              You will not be able to recover it.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>
-              Cancel
-            </AlertDialogCancel>
-
-            <AlertDialogAction
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={async (event) => {
-                event.preventDefault();
-
-                setIsDeleting(true);
-
-                try {
-                  const { error } = await supabase.functions.invoke(
-                    "delete-account"
-                  );
-
-                  if (error) {
-                    throw error;
-                  }
-
-                  await supabase.auth.signOut();
-                  navigate({ to: "/login" });
-                } catch (error) {
-                  console.error("Account deletion failed:", error);
-
-                  toast.error(
-                    "Unable to delete your account. Please try again."
-                  );
-                } finally {
-                  setIsDeleting(false);
-                  setShowDeleteDialog(false);
-                }
-              }}
-            >
-              {isDeleting ? "Deleting..." : "Yes, delete my account"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialog>
-      </AlertDialog>
-    </div>
+    </main>
   );
 }

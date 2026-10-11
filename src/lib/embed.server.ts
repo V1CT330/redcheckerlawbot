@@ -1,31 +1,59 @@
-/** Server-only helper: call Lovable AI Gateway /v1/embeddings. */
-export async function embedTexts(inputs: string[]): Promise<number[][]> {
-  const key = process.env.LOVABLE_API_KEY;
-  if (!key) throw new Error("Missing LOVABLE_API_KEY");
+
+/** Server-only helper: create embeddings with NVIDIA NIM. */
+export type EmbeddingInputType = "passage" | "query";
+
+export async function embedTexts(
+  inputs: string[],
+  inputType: EmbeddingInputType = "passage",
+): Promise<number[][]> {
+  const key = process.env.NVIDIA_API_KEY;
+  if (!key) throw new Error("Missing NVIDIA_API_KEY");
   if (inputs.length === 0) return [];
 
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/embeddings", {
+  const res = await fetch("https://integrate.api.nvidia.com/v1/embeddings", {
     method: "POST",
     headers: {
+      Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
-      "Lovable-API-Key": key,
     },
     body: JSON.stringify({
-      model: "openai/text-embedding-3-small",
+      model: "nvidia/nemotron-3-embed-1b",
       input: inputs,
-      dimensions: 1536,
+      input_type: inputType,
+      encoding_format: "float",
+      truncate: "END",
     }),
   });
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Embeddings failed (${res.status}): ${body.slice(0, 300)}`);
+    throw new Error(
+      `NVIDIA embeddings failed (${res.status}): ${body.slice(0, 300)}`,
+    );
   }
-  const json = (await res.json()) as { data: { embedding: number[]; index: number }[] };
-  return json.data
+
+  const json = (await res.json()) as {
+    data: { embedding: number[]; index: number }[];
+  };
+
+  const embeddings = json.data
     .slice()
     .sort((a, b) => a.index - b.index)
-    .map((d) => d.embedding);
+    .map((item) => item.embedding);
+
+  if (embeddings.length !== inputs.length) {
+    throw new Error(
+      `NVIDIA embeddings returned ${embeddings.length} vectors for ${inputs.length} inputs`,
+    );
+  }
+
+  if (embeddings.some((embedding) => embedding.length !== 2048)) {
+    throw new Error(
+      "NVIDIA embeddings returned an unexpected vector dimension (expected 2048)",
+    );
+  }
+
+  return embeddings;
 }
 
 /** Chunk a long string into ~1200-char pieces, respecting paragraph breaks. */
@@ -41,7 +69,12 @@ export function chunkText(text: string, target = 1200, overlap = 150): string[] 
       const slice = clean.slice(i, end);
       const paraBreak = slice.lastIndexOf("\n\n");
       const sentBreak = slice.lastIndexOf(". ");
-      const cut = paraBreak > target * 0.5 ? paraBreak : sentBreak > target * 0.5 ? sentBreak + 1 : end - i;
+      const cut =
+        paraBreak > target * 0.5
+          ? paraBreak
+          : sentBreak > target * 0.5
+            ? sentBreak + 1
+            : end - i;
       end = i + cut;
     }
     chunks.push(clean.slice(i, end).trim());
@@ -50,3 +83,4 @@ export function chunkText(text: string, target = 1200, overlap = 150): string[] 
   }
   return chunks.filter((c) => c.length > 30);
 }
+  

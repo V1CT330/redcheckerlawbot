@@ -7,6 +7,7 @@ import {
   ingestPdf,
   listDocuments,
 } from "@/lib/documents.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { FileText, Loader2, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -25,19 +26,6 @@ async function extractPdf(
     text: Array.isArray(text) ? text.join("\n\n") : text,
     pageCount: totalPages,
   };
-}
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      resolve((reader.result as string).split(",")[1] ?? "");
-    };
-
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
 }
 
 export function DocumentsPanel() {
@@ -69,6 +57,16 @@ export function DocumentsPanel() {
         throw new Error("The selected PDF is empty.");
       }
 
+      const { data: { user }, error: authError } =
+        await supabase.auth.getUser();
+
+      if (authError || !user) {
+        throw new Error("Please sign in again before uploading a PDF.");
+      }
+
+      const id = crypto.randomUUID();
+      const storagePath = `${user.id}/${id}.pdf`;
+
       const { text, pageCount } = await extractPdf(file);
 
       if (!text.trim() || text.trim().length < 20) {
@@ -77,16 +75,39 @@ export function DocumentsPanel() {
         );
       }
 
-      const fileBase64 = await fileToBase64(file);
+      const { error: uploadError } = await supabase.storage
+        .from("law-pdfs")
+        .upload(storagePath, file, {
+          contentType: "application/pdf",
+          upsert: false,
+        });
 
-      return ingest({
-        data: {
-          title: file.name.replace(/\.pdf$/i, ""),
-          text,
-          pageCount,
-          fileBase64,
-        },
-      });
+      if (uploadError) {
+        throw new Error(`PDF storage upload failed: ${uploadError.message}`);
+      }
+
+      try {
+        return await ingest({
+          data: {
+            id,
+            title: file.name.replace(/\.pdf$/i, ""),
+            text,
+            pageCount,
+            sizeBytes: file.size,
+            storagePath,
+          },
+        });
+      } catch (error) {
+        const { error: cleanupError } = await supabase.storage
+          .from("law-pdfs")
+          .remove([storagePath]);
+
+        if (cleanupError) {
+          console.error("Could not clean up uploaded PDF:", cleanupError);
+        }
+
+        throw error;
+      }
     },
 
     onSuccess: () => {
@@ -250,4 +271,5 @@ export function DocumentsPanel() {
       </div>
     </div>
   );
-}
+                       }
+        

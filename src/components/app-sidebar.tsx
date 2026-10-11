@@ -167,8 +167,8 @@ export function AppSidebar() {
   ];
 
   return (
-    <Sidebar>
-      <SidebarHeader className="border-b border-sidebar-border">
+    <Sidebar className="bg-sidebar text-sidebar-foreground">
+      <SidebarHeader className="border-b border-sidebar-border bg-sidebar">
         <Link to="/chat" className="flex items-center gap-3.5 px-3 py-3">
           <BrandLogo className="w-12" />
           <span className="min-w-0 font-serif text-xl font-bold leading-tight text-sidebar-foreground">
@@ -188,7 +188,7 @@ export function AppSidebar() {
               onClick={() => selectTab(id)}
               className={`flex-1 rounded px-3 py-2 text-center text-xs font-medium transition ${
                 tab === id
-                  ? "bg-sidebar text-sidebar-foreground shadow-sm"
+                  ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
               }`}
             >
@@ -198,7 +198,7 @@ export function AppSidebar() {
         </nav>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="bg-sidebar">
         {tab === "chats" && (
           <>
             <div className="p-2">
@@ -317,7 +317,7 @@ export function AppSidebar() {
         {tab === "law" && <LawLinksPanel />}
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border">
+      <SidebarFooter className="border-t border-sidebar-border bg-sidebar">
         <Button
           variant="ghost"
           onClick={signOut}
@@ -330,5 +330,5 @@ export function AppSidebar() {
       </SidebarFooter>
     </Sidebar>
   );
-    }
-    
+  }
+      

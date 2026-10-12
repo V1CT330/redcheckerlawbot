@@ -69,6 +69,7 @@ export const listThreads = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("threads")
       .select("id,title,updated_at")
+      .eq("user_id", context.userId)
       .order("updated_at", { ascending: false });
 
     if (error) throw new Error(error.message);
@@ -103,7 +104,8 @@ export const deleteThread = createServerFn({ method: "POST" })
     const { error } = await context.supabase
       .from("threads")
       .delete()
-      .eq("id", data.threadId);
+      .eq("id", data.threadId)
+      .eq("user_id", context.userId);
 
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -121,7 +123,8 @@ export const renameThread = createServerFn({ method: "POST" })
     const { error } = await context.supabase
       .from("threads")
       .update({ title: data.title })
-      .eq("id", data.threadId);
+      .eq("id", data.threadId)
+      .eq("user_id", context.userId);
 
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -137,6 +140,7 @@ export const getThreadMessages = createServerFn({ method: "GET" })
       .from("messages")
       .select("message")
       .eq("thread_id", data.threadId)
+      .eq("user_id", context.userId)
       .order("created_at", { ascending: true });
 
     if (error) throw new Error(error.message);
@@ -153,11 +157,12 @@ export const saveTurn = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    // Verify that the thread exists.
+    // Verify that the thread belongs to the signed-in user.
     const { data: thread, error: tErr } = await context.supabase
       .from("threads")
       .select("id,title")
       .eq("id", data.threadId)
+      .eq("user_id", context.userId)
       .single();
 
     if (tErr || !thread) throw new Error("Thread not found");
@@ -200,14 +205,16 @@ export const saveTurn = createServerFn({ method: "POST" })
       const { error: titleError } = await context.supabase
         .from("threads")
         .update({ title: newTitle, updated_at: now })
-        .eq("id", data.threadId);
+        .eq("id", data.threadId)
+        .eq("user_id", context.userId);
 
       if (titleError) throw new Error(titleError.message);
     } else {
       const { error: updateError } = await context.supabase
         .from("threads")
         .update({ updated_at: now })
-        .eq("id", data.threadId);
+        .eq("id", data.threadId)
+        .eq("user_id", context.userId);
 
       if (updateError) throw new Error(updateError.message);
     }

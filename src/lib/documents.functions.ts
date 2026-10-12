@@ -84,23 +84,32 @@ export const deleteDocument = createServerFn({ method: "POST" })
   });
 
 /**
- * Ingest a PDF: the client extracts its text.
- * The server chunks, embeds, uploads the original PDF,
- * and stores the document and its indexed text.
+ * Ingest a PDF whose original file has already been uploaded
+ * to Supabase Storage by the authenticated client.
+ * The server validates ownership, chunks and embeds the text,
+ * and stores the document record and indexed text.
  */
 export const ingestPdf = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
     z
       .object({
+        id: z.string().uuid(),
         title: z.string().min(1).max(200),
         text: z.string().min(20).max(2_000_000),
         pageCount: z.number().int().min(1).max(2000),
-        fileBase64: z.string().min(1).max(30_000_000),
+        sizeBytes: z.number().int().min(1).max(15 * 1024 * 1024),
+        storagePath: z.string().min(1).max(500),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
+    const expectedPath = `${context.userId}/${data.id}.pdf`;
+
+    if (data.storagePath !== expectedPath) {
+      throw new Error("Invalid PDF storage path.");
+    }
+
     const { chunkText, embedTexts } = await import("./embed.server");
     const chunks = chunkText(data.text);
 
@@ -108,39 +117,24 @@ export const ingestPdf = createServerFn({ method: "POST" })
       throw new Error("Could not extract text from PDF.");
     }
 
-    const bytes = Uint8Array.from(atob(data.fileBase64), (c) =>
-      c.charCodeAt(0),
-    );
-    const docId = crypto.randomUUID();
-    const storagePath = `${context.userId}/${docId}.pdf`;
-
-    const { error: upErr } = await context.supabase.storage
-      .from("law-pdfs")
-      .upload(storagePath, bytes, {
-        contentType: "application/pdf",
-        upsert: false,
-      });
-
-    if (upErr) {
-      throw new Error(`Upload failed: ${upErr.message}`);
-    }
-
-    const { data: doc, error: dErr } = await context.supabase
+    const { data: doc, error: insertError } = await context.supabase
       .from("documents")
       .insert({
-        id: docId,
+        id: data.id,
         user_id: context.userId,
         title: data.title,
-        storage_path: storagePath,
-        size_bytes: bytes.byteLength,
+        storage_path: data.storagePath,
+        size_bytes: data.sizeBytes,
         page_count: data.pageCount,
         status: "processing",
       })
       .select("id")
       .single();
 
-    if (dErr || !doc) {
-      throw new Error(dErr?.message ?? "Insert failed");
+    if (insertError || !doc) {
+      throw new Error(
+        insertError?.message ?? "Could not create the document record.",
+      );
     }
 
     try {
@@ -148,21 +142,29 @@ export const ingestPdf = createServerFn({ method: "POST" })
 
       for (let i = 0; i < chunks.length; i += batchSize) {
         const batch = chunks.slice(i, i + batchSize);
-        const vecs = await embedTexts(batch);
+        const vectors = await embedTexts(batch);
+
+        if (vectors.length !== batch.length) {
+          throw new Error("Embedding service returned an incomplete result.");
+        }
 
         const rows = batch.map((content, j) => ({
           document_id: doc.id,
           user_id: context.userId,
           chunk_index: i + j,
           content,
-          embedding: vecs[j] as unknown as string,
+          embedding: vectors[j] as unknown as string,
         }));
 
-        const { error: cErr } = await context.supabase
+        const { error: chunksError } = await context.supabase
           .from("document_chunks")
           .insert(rows);
 
-        if (cErr) throw new Error(cErr.message);
+        if (chunksError) {
+          throw new Error(
+            `Could not save indexed PDF text: ${chunksError.message}`,
+          );
+        }
       }
 
       const { error: readyError } = await context.supabase
@@ -171,10 +173,16 @@ export const ingestPdf = createServerFn({ method: "POST" })
         .eq("id", doc.id)
         .eq("user_id", context.userId);
 
-      if (readyError) throw new Error(readyError.message);
-    } catch (err) {
+      if (readyError) {
+        throw new Error(
+          `Could not mark the PDF as ready: ${readyError.message}`,
+        );
+      }
+
+      return { id: doc.id, chunkCount: chunks.length };
+    } catch (error) {
       const message =
-        err instanceof Error ? err.message : "Unknown error";
+        error instanceof Error ? error.message : "Unknown processing error";
 
       await context.supabase
         .from("documents")
@@ -185,9 +193,6 @@ export const ingestPdf = createServerFn({ method: "POST" })
         .eq("id", doc.id)
         .eq("user_id", context.userId);
 
-      throw err;
+      throw error;
     }
-
-    return { id: doc.id, chunkCount: chunks.length };
   });
-        

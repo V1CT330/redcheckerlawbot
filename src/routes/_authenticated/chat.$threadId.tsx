@@ -1,3 +1,4 @@
+
 import { createFileRoute } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
@@ -263,17 +264,25 @@ function ChatWindow({
         throw new Error(`PDF upload failed: ${storageError.message}`);
       }
 
-      await uploadPdf({
-        data: {
-          id,
-          title: file.name.replace(/\.pdf$/i, ""),
-          text,
-          pageCount,
-          sizeBytes: file.size,
-          storagePath,
-        },
+      // Send every field required by ingestPdf's server-side validator.
+      const payload = {
+        id,
+        title: file.name.replace(/\.pdf$/i, ""),
+        text,
+        pageCount,
+        sizeBytes: file.size,
+        storagePath,
+      };
+
+      console.log("Sending PDF metadata:", {
+        id: payload.id,
+        sizeBytes: payload.sizeBytes,
+        storagePath: payload.storagePath,
       });
 
+      await uploadPdf({ data: payload });
+
+      // The server function has completed; keep the uploaded file.
       storagePath = null;
 
       toast.success(
@@ -282,6 +291,7 @@ function ChatWindow({
     } catch (error) {
       console.error("Chat PDF upload failed:", error);
 
+      // Remove the uploaded file if processing or database insertion fails.
       if (storagePath) {
         const { error: cleanupError } = await supabase.storage
           .from("law-pdfs")
@@ -445,4 +455,4 @@ function ChatWindow({
       </div>
     </div>
   );
-      }
+  }

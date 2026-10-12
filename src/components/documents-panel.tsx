@@ -1,126 +1,21 @@
-
-import { useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   deleteDocument,
-  ingestPdf,
   listDocuments,
 } from "@/lib/documents.functions";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { FileText, Loader2, Trash2, Upload } from "lucide-react";
+import { FileText, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-
-async function extractPdf(
-  file: File,
-): Promise<{ text: string; pageCount: number }> {
-  const { extractText, getDocumentProxy } = await import("unpdf");
-  const buffer = new Uint8Array(await file.arrayBuffer());
-  const pdf = await getDocumentProxy(buffer);
-  const { text, totalPages } = await extractText(pdf, {
-    mergePages: true,
-  });
-
-  return {
-    text: Array.isArray(text) ? text.join("\n\n") : text,
-    pageCount: totalPages,
-  };
-}
 
 export function DocumentsPanel() {
   const qc = useQueryClient();
   const list = useServerFn(listDocuments);
-  const ingest = useServerFn(ingestPdf);
   const del = useServerFn(deleteDocument);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const docsQ = useQuery({
     queryKey: ["documents"],
     queryFn: () => list(),
-  });
-
-  const uploadM = useMutation({
-    mutationFn: async (file: File) => {
-      if (
-        file.type !== "application/pdf" &&
-        !file.name.toLowerCase().endsWith(".pdf")
-      ) {
-        throw new Error("Please select a PDF file.");
-      }
-
-      if (file.size > 15 * 1024 * 1024) {
-        throw new Error("PDF must be under 15 MB.");
-      }
-
-      if (file.size === 0) {
-        throw new Error("The selected PDF is empty.");
-      }
-
-      const { data: { user }, error: authError } =
-        await supabase.auth.getUser();
-
-      if (authError || !user) {
-        throw new Error("Please sign in again before uploading a PDF.");
-      }
-
-      const id = crypto.randomUUID();
-      const storagePath = `${user.id}/${id}.pdf`;
-
-      const { text, pageCount } = await extractPdf(file);
-
-      if (!text.trim() || text.trim().length < 20) {
-        throw new Error(
-          "No readable text found. This PDF may be scanned or image-only.",
-        );
-      }
-
-      const { error: uploadError } = await supabase.storage
-        .from("law-pdfs")
-        .upload(storagePath, file, {
-          contentType: "application/pdf",
-          upsert: false,
-        });
-
-      if (uploadError) {
-        throw new Error(`PDF storage upload failed: ${uploadError.message}`);
-      }
-
-      try {
-        return await ingest({
-          data: {
-            id,
-            title: file.name.replace(/\.pdf$/i, ""),
-            text,
-            pageCount,
-            sizeBytes: file.size,
-            storagePath,
-          },
-        });
-      } catch (error) {
-        const { error: cleanupError } = await supabase.storage
-          .from("law-pdfs")
-          .remove([storagePath]);
-
-        if (cleanupError) {
-          console.error("Could not clean up uploaded PDF:", cleanupError);
-        }
-
-        throw error;
-      }
-    },
-
-    onSuccess: () => {
-      toast.success("PDF added to your legal library.");
-      void qc.invalidateQueries({ queryKey: ["documents"] });
-    },
-
-    onError: (error) => {
-      console.error("PDF library upload failed:", error);
-      toast.error(
-        error instanceof Error ? error.message : "PDF upload failed.",
-      );
-    },
   });
 
   const deleteM = useMutation({
@@ -140,50 +35,12 @@ export function DocumentsPanel() {
     },
   });
 
-  const busy = uploadM.isPending;
-
   return (
     <div className="flex h-full flex-col">
       <div className="border-b p-3">
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".pdf,application/pdf"
-          className="hidden"
-          disabled={busy}
-          onChange={(event) => {
-            const file = event.currentTarget.files?.[0];
-            event.currentTarget.value = "";
-
-            if (file) uploadM.mutate(file);
-          }}
-        />
-
-        <Button
-          type="button"
-          onClick={() => {
-            if (!busy) inputRef.current?.click();
-          }}
-          disabled={busy}
-          className="w-full"
-          size="sm"
-        >
-          {busy ? (
-            <>
-              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-              Processing PDF…
-            </>
-          ) : (
-            <>
-              <Upload className="mr-2 h-3.5 w-3.5" />
-              Upload PDF
-            </>
-          )}
-        </Button>
-
-        <p className="mt-1.5 text-[10px] text-muted-foreground">
-          Upload contracts, judgments and statutes for document indexing.
-          Maximum file size: 15 MB.
+        <p className="text-xs text-muted-foreground">
+          Your uploaded legal documents appear here. Upload PDFs from the chat
+          window.
         </p>
       </div>
 
@@ -242,8 +99,10 @@ export function DocumentsPanel() {
                 </p>
               </div>
 
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon"
                 disabled={deleteM.isPending}
                 onClick={() => {
                   if (
@@ -257,19 +116,18 @@ export function DocumentsPanel() {
                 }}
                 aria-label={`Delete ${document.title}`}
                 title="Delete document"
-                className="rounded p-1 hover:bg-destructive/10 disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                className="h-7 w-7 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
               >
                 {deleteM.isPending ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
                 ) : (
                   <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
                 )}
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
       </div>
     </div>
   );
-                       }
-        
+              }

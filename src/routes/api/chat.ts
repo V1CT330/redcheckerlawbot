@@ -11,6 +11,7 @@ import { z } from "zod";
 import { createAvailableModel } from "@/lib/ai-gateway.server";
 import { MALAWI_LAW_SYSTEM_PROMPT } from "@/lib/malawi-law-prompt";
 import { MALAWI_LAW_DOMAINS } from "@/lib/malawi-law-links";
+import { searchLegalLibrary } from "@/lib/legal-library.server";
 import { embedTexts } from "@/lib/embed.server";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -45,7 +46,7 @@ function isApprovedLegalSource(rawUrl: string): boolean {
       return false;
     }
 
-    const hostname = url.hostname.toLowerCase();
+    const hostname = url.hostname.toLowerCase().replace(/^www\./, "");
 
     return MALAWI_LAW_DOMAINS.some((domain) => {
       const approvedDomain = domain
@@ -54,16 +55,68 @@ function isApprovedLegalSource(rawUrl: string): boolean {
         .replace(/^www\./, "")
         .split("/")[0];
 
-      const normalizedHost = hostname.replace(/^www\./, "");
-
       return (
-        normalizedHost === approvedDomain ||
-        normalizedHost.endsWith(`.${approvedDomain}`)
+        hostname === approvedDomain ||
+        hostname.endsWith(`.${approvedDomain}`)
       );
     });
   } catch {
     return false;
   }
+}
+
+/**
+ * Searches RedBot's stored legal library first.
+ * Firecrawl is used only when the library has no matching results.
+ */
+async function searchMalawiLaw(query: string) {
+  try {
+    const library = await searchLegalLibrary(query, 5);
+
+    if (library.results.length > 0) {
+      return {
+        results: library.results
+          .filter((item) => isApprovedLegalSource(item.source_url))
+          .map((item) => ({
+            title: item.title,
+            url: item.source_url,
+            description: [
+              `Document type: ${item.document_type}.`,
+              `Last checked: ${item.last_crawled_at}.`,
+              item.source_updated_at
+                ? `Source updated: ${item.source_updated_at}.`
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" "),
+            content: item.content,
+            contentRetrieved: true,
+          })),
+        source: "redbot_legal_library",
+        note:
+          "These results came from RedBot's stored legal library. Check the source text and dates before making legal claims. A stored document is not automatically the current law.",
+      };
+    }
+  } catch (error) {
+    console.error(
+      "[legal-search] Shared library search failed:",
+      error instanceof Error ? error.message : "Unknown error",
+    );
+  }
+
+  // The shared library has no matching results, or its search failed.
+  const fallback = await firecrawlSearch(query);
+
+  return {
+    ...fallback,
+    source: "firecrawl_fallback",
+    note: [
+      fallback.note,
+      "RedBot did not retrieve matching documents from its shared legal library, so it attempted a fresh legal web search.",
+    ]
+      .filter(Boolean)
+      .join(" "),
+  };
 }
 
 async function firecrawlSearch(query: string) {
@@ -109,7 +162,6 @@ async function firecrawlSearch(query: string) {
     }
 
     const json = (await res.json()) as FirecrawlResponse;
-
     const data = json.data;
 
     const pages: FirecrawlResult[] = Array.isArray(data)
@@ -117,22 +169,21 @@ async function firecrawlSearch(query: string) {
       : data?.web ?? [];
 
     const results = pages
-      .filter((page) => {
-        return typeof page.url === "string" &&
-          isApprovedLegalSource(page.url);
-      })
+      .filter(
+        (page) =>
+          typeof page.url === "string" &&
+          isApprovedLegalSource(page.url),
+      )
       .map((page) => {
-        const text = page.markdown ?? page.content ?? "";
+        const content = page.markdown ?? page.content ?? "";
 
         return {
           title:
-            page.title ??
-            page.metadata?.title ??
-            "Legal source",
+            page.title ?? page.metadata?.title ?? "Legal source",
           url: page.url!,
           description: page.description ?? "",
-          content: text.slice(0, 8000),
-          contentRetrieved: text.trim().length > 0,
+          content: content.slice(0, 8000),
+          contentRetrieved: content.trim().length > 0,
         };
       })
       .filter((page) => page.contentRetrieved)
@@ -193,7 +244,7 @@ export const Route = createFileRoute("/api/chat")({
           const tools = {
             search_malawi_law: tool({
               description: `
-Search approved Malawi legal sources and retrieve the actual page text.
+Search RedBot's shared legal library first, then search approved Malawi legal sources if no matching stored documents are found.
 
 MANDATORY USE:
 - When answering whether an action is legal or illegal in Malawi.
@@ -202,9 +253,9 @@ MANDATORY USE:
 - When asked whether a particular law exists.
 - When explaining a legal procedure or a potentially current legal requirement.
 
-Search before making a specific legal claim. Search results include retrieved page content when available. Use that content to check what the source actually says.
+Read the retrieved content, not just titles or descriptions. Check the source URL and dates. Stored documents may be outdated.
 
-Never invent a section number, Act, court case, quotation, penalty, or source URL. If the search fails or the retrieved content does not establish the answer, clearly explain the limitation and ask the user to consult an authoritative source or qualified legal practitioner.
+Never invent a section number, Act, court case, quotation, penalty, or source URL. If the search fails or retrieved content does not establish the answer, explain the limitation and recommend checking an authoritative source or consulting a qualified legal practitioner.
               `.trim(),
 
               inputSchema: z.object({
@@ -218,7 +269,7 @@ Never invent a section number, Act, court case, quotation, penalty, or source UR
               }),
 
               execute: async ({ query }) => {
-                return firecrawlSearch(query);
+                return searchMalawiLaw(query);
               },
             }),
 
@@ -350,7 +401,7 @@ You are assisting users with Malawian law. Accuracy is more important than sound
 ### When to search
 Use search_malawi_law before answering questions about whether conduct is legal or illegal, whether a law exists, the meaning of a specific statutory provision, offences, penalties, legal rights, procedures, and current legal requirements.
 
-Do not answer these questions from model memory alone when live research is available.
+Do not answer these questions from model memory alone when legal research is available.
 
 ### How to use retrieved information
 1. Read the retrieved page content, not just its title or description.
@@ -360,6 +411,7 @@ Do not answer these questions from model memory alone when live research is avai
 5. Distinguish the wording of the law from your explanation or interpretation.
 6. Do not assume that a search result is current, in force, or applicable to the facts without adequate evidence.
 7. If a page is an old version, a secondary commentary, or does not contain the relevant provision, say so.
+8. When results come from RedBot's stored library, check their last-checked and source-update dates.
 
 ### If verification fails
 If the search returns an error, no readable content, or insufficient evidence, tell the user that you could not verify the specific provision.
@@ -380,21 +432,16 @@ You may explain what is known, identify what remains uncertain, and suggest what
 - Use search_malawi_law for public legal sources and current legal research.
 - Use search_uploaded_documents for the user's own uploaded documents only.
 - An uploaded document is not automatically an authoritative statement of current law.
-
-Always prefer verified source content over memory when the relevant fact can be researched.
+- Prefer verified source content over memory when the relevant fact can be researched.
           `.trim();
 
           const result = streamText({
             model,
-
             system: systemPrompt,
-
             messages: await convertToModelMessages(
               messages as UIMessage[],
             ),
-
             tools,
-
             stopWhen: stepCountIs(6),
           });
 

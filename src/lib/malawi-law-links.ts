@@ -8,72 +8,88 @@ export type LawLink = {
 export const MALAWI_LAW_LINKS: LawLink[] = [
   {
     category: "constitution",
-    title: "Constitution of the Republic of Malawi (1994)",
+    title: "Constitution of the Republic of Malawi",
     url: "https://malawilii.org/akn/mw/act/1994/20/eng@2017-02-14",
-    description: "Full text of the Constitution as amended, on MalawiLII.",
+    description:
+      "Constitutional text hosted by MalawiLII. Verify whether a more recent consolidated version is available before relying on it.",
   },
   {
     category: "acts",
-    title: "MalawiLII: Acts of Parliament",
+    title: "MalawiLII Legislation",
     url: "https://malawilii.org/legislation/",
-    description: "Searchable database of all Malawian Acts and Statutory Instruments.",
+    description:
+      "Search legislation published on MalawiLII. Check amendment history and current legal status where available.",
   },
   {
     category: "acts",
-    title: "Penal Code (Cap. 7:01)",
+    title: "Penal Code",
     url: "https://malawilii.org/akn/mw/act/1930/22/eng",
-    description: "Malawi's principal criminal statute.",
+    description:
+      "Malawi criminal legislation. Verify the relevant provision and amendments before explaining an offence or penalty.",
   },
   {
     category: "acts",
-    title: "Employment Act (Cap. 55:02)",
+    title: "Employment Act",
     url: "https://malawilii.org/akn/mw/act/2000/6/eng",
-    description: "Rights and duties of employees and employers.",
+    description:
+      "Legislation concerning employment relationships, subject to applicable amendments.",
   },
   {
     category: "acts",
     title: "Marriage, Divorce and Family Relations Act",
     url: "https://malawilii.org/akn/mw/act/2015/4/eng",
-    description: "Marriage, divorce, custody and maintenance.",
+    description:
+      "Legislation concerning marriage, divorce and related family matters.",
   },
   {
     category: "acts",
-    title: "Land Act 2016",
+    title: "Land Act",
     url: "https://malawilii.org/akn/mw/act/2016/16/eng",
-    description: "Ownership, use and administration of land.",
+    description:
+      "Legislation concerning land administration and related matters. Check amendments and current status.",
   },
   {
     category: "cases",
-    title: "MalawiLII: Judgments",
+    title: "MalawiLII Judgments",
     url: "https://malawilii.org/judgments/",
-    description: "Supreme Court of Appeal and High Court decisions.",
+    description:
+      "Search published Malawian court judgments and verify the court, case citation, date and outcome.",
   },
   {
     category: "policy",
     title: "Malawi Government Portal",
     url: "https://www.malawi.gov.mw/",
-    description: "Ministries, public policies and official notices.",
+    description:
+      "Government information, ministry publications and public announcements.",
   },
   {
     category: "help",
-    title: "Legal Aid Bureau: 847 (toll-free)",
+    title: "Legal Aid Bureau",
     url: "https://legalaidbureau.mw/",
-    description: "Free legal assistance for those who cannot afford a lawyer.",
+    description:
+      "Information about legal assistance and services for eligible people in Malawi.",
   },
   {
     category: "help",
     title: "Malawi Human Rights Commission",
     url: "https://www.mhrcmw.org/",
-    description: "Report human rights violations and get guidance.",
+    description:
+      "Information about human rights, complaints and the Commission's work.",
   },
 ];
 
-/** Domains the AI web-search tool is allowed to cite. */
+/**
+ * Domains permitted for Malawi legal research.
+ *
+ * Search results must still be checked for relevance and reliability.
+ * Being hosted on an approved domain does not automatically prove that
+ * a page is current, authoritative or legally applicable.
+ */
 export const MALAWI_LAW_DOMAINS = [
   "malawilii.org",
+  "malawi.gov.mw",
   "gov.mw",
   "laws.gov.mw",
-  "malawi.gov.mw",
   "legalaidbureau.mw",
   "mhrcmw.org",
   "parliament.gov.mw",

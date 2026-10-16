@@ -234,7 +234,7 @@ export function createAvailableModel() {
             },
           });
 
-          return { ...response, stream };
+          return { ...response, stream: stream as typeof response.stream };
         };
 
         try {

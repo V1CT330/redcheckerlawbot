@@ -50,7 +50,7 @@ function isApprovedLegalSource(rawUrl: string): boolean {
  */
 async function searchMalawiLaw(query: string) {
   try {
-    const library = await searchLegalLibrary(query, 5);
+    const library = await searchLegalLibrary(query, 3);
 
     const results = library.results
       .filter((item) => isApprovedLegalSource(item.source_url))
@@ -318,7 +318,9 @@ Explain what is known, identify what remains uncertain, and suggest which offici
               messages as UIMessage[],
             ),
             tools,
-            stopWhen: stepCountIs(6),
+            // Keep tool/model round-trips bounded to reduce end-to-end latency.
+            stopWhen: stepCountIs(3),
+            maxOutputTokens: 900,
           });
 
           return result.toUIMessageStreamResponse({

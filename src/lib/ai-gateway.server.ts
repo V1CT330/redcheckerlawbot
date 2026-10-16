@@ -115,4 +115,3 @@ export function createAvailableModel() {
       "LOVABLE_API_KEY, GROQ_API_KEY, " +
       "OPENROUTER_API_KEY, or GEMINI_API_KEY.",
   );
-        }

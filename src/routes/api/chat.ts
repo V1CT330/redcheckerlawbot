@@ -50,7 +50,12 @@ function isApprovedLegalSource(rawUrl: string): boolean {
  */
 async function searchMalawiLaw(query: string) {
   try {
-    const library = await searchLegalLibrary(query, 3);
+    const library = await Promise.race([
+      searchLegalLibrary(query, 3),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Legal library search timed out")), 3500),
+      ),
+    ]);
 
     const results = library.results
       .filter((item) => isApprovedLegalSource(item.source_url))
@@ -319,7 +324,8 @@ Explain what is known, identify what remains uncertain, and suggest which offici
             ),
             tools,
             // Keep tool/model round-trips bounded to reduce end-to-end latency.
-            stopWhen: stepCountIs(3),
+            stopWhen: stepCountIs(2),
+            maxOutputTokens: 700,
             maxOutputTokens: 900,
           });
 

@@ -342,8 +342,10 @@ Explain what is known, identify what remains uncertain, and suggest which offici
               messages as UIMessage[],
             ),
             tools,
-            // Keep tool/model round-trips bounded to reduce end-to-end latency.
-            stopWhen: stepCountIs(2),
+            // Allow a tool call, its result, and a follow-up generation to complete.
+            // A two-step limit can stop immediately after a second tool call, leaving
+            // the UI with an assistant message that contains no visible text.
+            stopWhen: stepCountIs(4),
             maxOutputTokens: 700,
           });
 

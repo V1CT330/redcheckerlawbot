@@ -148,6 +148,18 @@ function ChatWindow({
     messages: initial,
     transport: new DefaultChatTransport({
       api: "/api/chat",
+      // Keep the full conversation in the UI, but send only recent context.
+      // Re-sending an ever-growing transcript on every question wastes mobile
+      // data and increases upload time on slow connections.
+      prepareSendMessagesRequest: ({ id, messages, trigger, messageId, body }) => ({
+        body: {
+          ...body,
+          id,
+          messages: messages.slice(-12),
+          trigger,
+          messageId,
+        },
+      }),
       headers: async (): Promise<Record<string, string>> => {
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token;

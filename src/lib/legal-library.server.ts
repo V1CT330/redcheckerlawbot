@@ -119,4 +119,3 @@ export async function searchLegalLibrary(
       error: "The stored legal library could not be searched.",
     };
   }
-          }

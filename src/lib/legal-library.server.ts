@@ -98,7 +98,7 @@ export async function searchLegalLibrary(
       )
       .map((item) => ({
         ...item,
-        content: item.content.slice(0, 8000),
+        content: item.content.slice(0, 4500),
       }));
 
     return {

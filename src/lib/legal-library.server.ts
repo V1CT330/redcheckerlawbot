@@ -17,7 +17,7 @@ function isApprovedSource(rawUrl: string): boolean {
   try {
     const url = new URL(rawUrl);
 
-    if (url.protocol !== "https:" && url.protocol !== "http:") {
+    if (url.protocol !== "https:") {
       return false;
     }
 

@@ -1,3 +1,4 @@
+import { wrapLanguageModel } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 
 export type AIProviderName =
@@ -6,6 +7,11 @@ export type AIProviderName =
   | "gemini"
   | "groq"
   | "openrouter";
+
+type ConfiguredModel = {
+  provider: AIProviderName;
+  model: ReturnType<ReturnType<typeof createNvidiaProvider>>;
+};
 
 export function createNvidiaProvider(apiKey: string) {
   return createOpenAICompatible({
@@ -20,17 +26,14 @@ export function createLovableProvider(apiKey: string) {
     name: "lovable",
     baseURL: "https://ai.gateway.lovable.dev/v1",
     apiKey,
-    headers: {
-      "Lovable-API-Key": apiKey,
-    },
+    headers: { "Lovable-API-Key": apiKey },
   });
 }
 
 export function createGeminiProvider(apiKey: string) {
   return createOpenAICompatible({
     name: "google-gemini",
-    baseURL:
-      "https://generativelanguage.googleapis.com/v1beta/openai/",
+    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
     apiKey,
   });
 }
@@ -49,70 +52,118 @@ export function createOpenRouterProvider(apiKey: string) {
     baseURL: "https://openrouter.ai/api/v1",
     apiKey,
     headers: {
-      "HTTP-Referer":
-        "https://redcheckerlawbot.vercel.app",
+      "HTTP-Referer": "https://redcheckerlawbot.vercel.app",
       "X-Title": "Red Checker Law Bot",
     },
   });
 }
 
-export function createAvailableModel() {
+function getConfiguredModels(): ConfiguredModel[] {
+  const models: ConfiguredModel[] = [];
   const nvidiaKey = process.env.NVIDIA_API_KEY;
   const lovableKey = process.env.LOVABLE_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;
   const openRouterKey = process.env.OPENROUTER_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
 
-  // NVIDIA is the primary provider when configured.
+  // Preserve the configured priority order. Later entries are automatic fallbacks.
   if (nvidiaKey) {
-    return {
-      provider: "nvidia" as const,
-      model: createNvidiaProvider(nvidiaKey)(
-        "openai/gpt-oss-20b",
-      ),
-    };
+    models.push({
+      provider: "nvidia",
+      model: createNvidiaProvider(nvidiaKey)("openai/gpt-oss-20b"),
+    });
   }
-
-  // Existing providers remain available as fallbacks.
   if (lovableKey) {
-    return {
-      provider: "lovable" as const,
-      model: createLovableProvider(lovableKey)(
-        "google/gemini-3.7-flash",
-      ),
-    };
+    models.push({
+      provider: "lovable",
+      model: createLovableProvider(lovableKey)("google/gemini-3.7-flash"),
+    });
   }
-
   if (groqKey) {
-    return {
-      provider: "groq" as const,
-      model: createGroqProvider(groqKey)(
-        "openai/gpt-oss-120b",
-      ),
-    };
+    models.push({
+      provider: "groq",
+      model: createGroqProvider(groqKey)("openai/gpt-oss-120b"),
+    });
   }
-
   if (openRouterKey) {
-    return {
-      provider: "openrouter" as const,
-      model: createOpenRouterProvider(openRouterKey)(
-        "openai/gpt-oss-120b:free",
-      ),
-    };
+    models.push({
+      provider: "openrouter",
+      model: createOpenRouterProvider(openRouterKey)("openai/gpt-oss-120b:free"),
+    });
   }
-
   if (geminiKey) {
-    return {
-      provider: "gemini" as const,
-      model: createGeminiProvider(geminiKey)(
-        "gemini-3-flash-preview",
-      ),
-    };
+    models.push({
+      provider: "gemini",
+      model: createGeminiProvider(geminiKey)("gemini-3-flash-preview"),
+    });
   }
 
-  throw new Error(
-    "No AI provider configured. Set NVIDIA_API_KEY, " +
-      "LOVABLE_API_KEY, GROQ_API_KEY, " +
-      "OPENROUTER_API_KEY, or GEMINI_API_KEY.",
-  );
+  return models;
+}
+
+/**
+ * Selects the first configured provider and retries subsequent configured
+ * providers if the provider rejects the generation/stream request before it
+ * starts. Once a stream has emitted data, transparent replay is not safe.
+ */
+export function createAvailableModel() {
+  const candidates = getConfiguredModels();
+  const primary = candidates[0];
+
+  if (!primary) {
+    throw new Error(
+      "No AI provider configured. Set NVIDIA_API_KEY, LOVABLE_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY, or GEMINI_API_KEY.",
+    );
+  }
+
+  const fallbacks = candidates.slice(1);
+  if (fallbacks.length === 0) return primary;
+
+  const model = wrapLanguageModel({
+    model: primary.model,
+    middleware: {
+      wrapGenerate: async ({ doGenerate, params }) => {
+        let lastError: unknown;
+        try {
+          return await doGenerate();
+        } catch (error) {
+          lastError = error;
+        }
+
+        for (const fallback of fallbacks) {
+          try {
+            console.warn(`[ai-failover] trying ${fallback.provider} after provider failure`);
+            return await fallback.model.doGenerate(params);
+          } catch (error) {
+            lastError = error;
+            console.error(`[ai-failover] ${fallback.provider} generation failed`);
+          }
+        }
+
+        throw lastError;
+      },
+      wrapStream: async ({ doStream, params }) => {
+        let lastError: unknown;
+        try {
+          return await doStream();
+        } catch (error) {
+          lastError = error;
+        }
+
+        for (const fallback of fallbacks) {
+          try {
+            console.warn(`[ai-failover] trying ${fallback.provider} after stream setup failure`);
+            return await fallback.model.doStream(params);
+          } catch (error) {
+            lastError = error;
+            console.error(`[ai-failover] ${fallback.provider} stream setup failed`);
+          }
+        }
+
+        throw lastError;
+      },
+    },
+  });
+
+  return { provider: primary.provider, model };
 }

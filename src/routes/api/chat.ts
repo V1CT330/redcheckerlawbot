@@ -78,7 +78,8 @@ async function firecrawlSearch(query: string) {
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 25000);
+  // Keep source retrieval bounded so one slow legal website cannot stall chat.
+  const timeout = setTimeout(() => controller.abort(), 5500);
 
   try {
     const res = await fetch("https://api.firecrawl.dev/v2/search", {
@@ -90,7 +91,7 @@ async function firecrawlSearch(query: string) {
       signal: controller.signal,
       body: JSON.stringify({
         query,
-        limit: 5,
+        limit: 3,
         includeDomains: MALAWI_LAW_DOMAINS,
         scrapeOptions: {
           formats: ["markdown"],
@@ -131,12 +132,12 @@ async function firecrawlSearch(query: string) {
             "Legal source",
           url: page.url!,
           description: page.description ?? "",
-          content: text.slice(0, 8000),
+          content: text.slice(0, 4000),
           contentRetrieved: text.trim().length > 0,
         };
       })
       .filter((page) => page.contentRetrieved)
-      .slice(0, 5);
+      .slice(0, 3);
 
     return {
       results,
@@ -395,7 +396,9 @@ Always prefer verified source content over memory when the relevant fact can be 
 
             tools,
 
-            stopWhen: stepCountIs(6),
+            // One tool round-trip is enough for a focused, source-grounded answer.
+            stopWhen: stepCountIs(2),
+            maxOutputTokens: 700,
           });
 
           return result.toUIMessageStreamResponse({

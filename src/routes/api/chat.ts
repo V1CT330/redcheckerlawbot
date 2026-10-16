@@ -12,6 +12,7 @@ import { createAvailableModel } from "@/lib/ai-gateway.server";
 import { MALAWI_LAW_SYSTEM_PROMPT } from "@/lib/malawi-law-prompt";
 import { MALAWI_LAW_DOMAINS } from "@/lib/malawi-law-links";
 import { searchLegalLibrary } from "@/lib/legal-library.server";
+import { reviewLegalQuestionWithAgents } from "@/lib/multi-agent.server";
 import { embedTexts } from "@/lib/embed.server";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -75,8 +76,14 @@ async function searchMalawiLaw(query: string) {
         contentRetrieved: true,
       }));
 
+    const agentReviews = await reviewLegalQuestionWithAgents(
+      query,
+      results.map((item) => `${item.title}\n${item.url}\n${item.content}`).join("\n\n"),
+    );
+
     return {
       results,
+      agent_reviews: agentReviews,
       source: "redbot_legal_library",
       note:
         results.length > 0
@@ -293,6 +300,9 @@ Do not answer these questions from model memory alone when legal research is ava
 6. Do not assume that a document is current, in force, or applicable without adequate evidence.
 7. If a page is an old version, secondary commentary, or does not contain the relevant provision, say so.
 8. Check last-checked and source-update dates for stored documents.
+
+### Independent agent reviews
+The legal-library search may include short reviews from multiple AI providers. Treat these reviews as advisory analysis only, not as legal authority. Agent agreement is not proof. Prefer the actual retrieved legal text and verified sources; disregard unsupported agent claims and explain material uncertainty.
 
 ### If verification fails
 If the search returns an error, no readable content, or insufficient evidence, tell the user that you could not verify the specific provision.

@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { MALAWI_LAW_DOMAINS } from "@/lib/malawi-law-links";
 
 type LegalLibraryResult = {
-  id: string;
+  id: number;
   title: string;
   source_url: string;
   source_domain: string;
@@ -119,3 +119,4 @@ export async function searchLegalLibrary(
       error: "The stored legal library could not be searched.",
     };
   }
+}

@@ -9,8 +9,8 @@ import {
 const MAX_CONTENT_LENGTH = 100_000;
 const MAX_HTML_BYTES = 3 * 1024 * 1024;
 const MAX_PDF_BYTES = 15 * 1024 * 1024;
-const REQUEST_TIMEOUT_MS = 20_000;
-const MAX_DISCOVERED_DOCUMENTS = 40;
+const REQUEST_TIMEOUT_MS = 8_000;
+const MAX_DISCOVERED_DOCUMENTS = 12;
 const MIN_READABLE_TEXT = 300;
 
 type DocumentType =
@@ -345,19 +345,31 @@ export async function syncLegalLibrary() {
   const queuedUrls = new Set(queue.map((item) => item.url));
   const visitedUrls = new Set<string>();
   let discoveredCount = 0;
+  const BATCH_SIZE = 4;
 
+  // Bounded batches keep a scheduled run from spending the timeout on one slow source.
   while (queue.length > 0) {
-    const item = queue.shift()!;
-    const normalizedItemUrl = new URL(item.url);
-    normalizedItemUrl.hash = "";
-    const visitKey = normalizedItemUrl.toString();
+    const batch = queue.splice(0, BATCH_SIZE);
+    const batchResults = await Promise.all(
+      batch.map(async (item) => {
+        const normalizedItemUrl = new URL(item.url);
+        normalizedItemUrl.hash = "";
+        const visitKey = normalizedItemUrl.toString();
 
-    if (visitedUrls.has(visitKey)) continue;
-    visitedUrls.add(visitKey);
-    summary.checked += 1;
+        if (visitedUrls.has(visitKey)) {
+          return { item, document: null, discovered: [], duplicate: true };
+        }
+        visitedUrls.add(visitKey);
+        summary.checked += 1;
 
-    try {
-      const { document, discovered } = await collectPage(item);
+        const result = await collectPage(item);
+        return { item, ...result, duplicate: false };
+      }),
+    );
+
+    for (const result of batchResults) {
+      if (result.duplicate) continue;
+      const { item, document, discovered } = result;
 
       for (const candidate of discovered) {
         if (
@@ -379,36 +391,38 @@ export async function syncLegalLibrary() {
         continue;
       }
 
-      const { data: existing, error: lookupError } = await supabase
-        .from("legal_library_documents")
-        .select("id, content_hash")
-        .eq("source_url", document.source_url)
-        .maybeSingle();
-
-      if (lookupError) throw lookupError;
-
-      if (existing?.content_hash === document.content_hash) {
-        const { error: updateError } = await supabase
+      try {
+        const { data: existing, error: lookupError } = await supabase
           .from("legal_library_documents")
-          .update({ last_crawled_at: document.last_crawled_at })
-          .eq("id", existing.id);
+          .select("id, content_hash")
+          .eq("source_url", document.source_url)
+          .maybeSingle();
 
-        if (updateError) throw updateError;
-        summary.unchanged += 1;
-        continue;
+        if (lookupError) throw lookupError;
+
+        if (existing?.content_hash === document.content_hash) {
+          const { error: updateError } = await supabase
+            .from("legal_library_documents")
+            .update({ last_crawled_at: document.last_crawled_at })
+            .eq("id", existing.id);
+
+          if (updateError) throw updateError;
+          summary.unchanged += 1;
+          continue;
+        }
+
+        const { error: saveError } = await supabase
+          .from("legal_library_documents")
+          .upsert(document, { onConflict: "source_url" });
+
+        if (saveError) throw saveError;
+        summary.stored += 1;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        console.error(`[legal-collector] Could not store ${item.url}:`, message);
+        summary.skippedOrFailed += 1;
+        summary.errors.push(`${item.title}: ${message}`);
       }
-
-      const { error: saveError } = await supabase
-        .from("legal_library_documents")
-        .upsert(document, { onConflict: "source_url" });
-
-      if (saveError) throw saveError;
-      summary.stored += 1;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      console.error(`[legal-collector] Could not store ${item.url}:`, message);
-      summary.skippedOrFailed += 1;
-      summary.errors.push(`${item.title}: ${message}`);
     }
   }
 

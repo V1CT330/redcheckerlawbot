@@ -144,19 +144,117 @@ export function createAvailableModel() {
       },
       wrapStream: async ({ doStream, params }) => {
         let lastError: unknown;
+
+        // Some providers return a stream successfully, then fail before sending
+        // useful output. Probe the stream before committing to that provider so
+        // early failures can still fall back to another configured provider.
+        const openUsableStream = async (
+          open: () => ReturnType<typeof doStream>,
+        ) => {
+          const response = await open();
+          const reader = response.stream.getReader();
+          const buffered: unknown[] = [];
+          let firstUsefulChunk = false;
+
+          try {
+            // Buffer setup events until text, reasoning, a tool call, or a source
+            // appears. Time out rather than leaving the chat stuck indefinitely.
+            for (let index = 0; index < 32; index += 1) {
+              const item = await new Promise<ReadableStreamReadResult<unknown>>(
+                (resolve, reject) => {
+                  const timer = setTimeout(
+                    () => reject(new Error("Provider produced no usable output")),
+                    8000,
+                  );
+                  reader.read().then(
+                    (value) => {
+                      clearTimeout(timer);
+                      resolve(value);
+                    },
+                    (error) => {
+                      clearTimeout(timer);
+                      reject(error);
+                    },
+                  );
+                },
+              );
+
+              if (item.done) break;
+              buffered.push(item.value);
+
+              const part = item.value as { type?: string };
+              if (
+                part.type === "text-delta" ||
+                part.type === "reasoning-delta" ||
+                part.type === "tool-call" ||
+                part.type === "tool-input-end" ||
+                part.type === "source"
+              ) {
+                firstUsefulChunk = true;
+                break;
+              }
+            }
+
+            if (!firstUsefulChunk) {
+              throw new Error("Provider stream ended before useful output");
+            }
+          } catch (error) {
+            try {
+              await reader.cancel(error);
+            } catch {
+              // The provider may already have closed the stream.
+            }
+            try {
+              reader.releaseLock();
+            } catch {
+              // Ignore an already released lock.
+            }
+            throw error;
+          }
+
+          const stream = new ReadableStream({
+            async start(controller) {
+              for (const part of buffered) controller.enqueue(part);
+              try {
+                while (true) {
+                  const item = await reader.read();
+                  if (item.done) break;
+                  controller.enqueue(item.value);
+                }
+                controller.close();
+              } catch (error) {
+                controller.error(error);
+              } finally {
+                try {
+                  reader.releaseLock();
+                } catch {
+                  // Ignore an already released lock.
+                }
+              }
+            },
+          });
+
+          return { ...response, stream };
+        };
+
         try {
-          return await doStream();
+          return await openUsableStream(doStream);
         } catch (error) {
           lastError = error;
+          console.warn("[ai-failover] primary stream failed before output");
         }
 
         for (const fallback of fallbacks) {
           try {
-            console.warn(`[ai-failover] trying ${fallback.provider} after stream setup failure`);
-            return await fallback.model.doStream(params);
+            console.warn(
+              `[ai-failover] trying ${fallback.provider} after early stream failure`,
+            );
+            return await openUsableStream(() => fallback.model.doStream(params));
           } catch (error) {
             lastError = error;
-            console.error(`[ai-failover] ${fallback.provider} stream setup failed`);
+            console.error(
+              `[ai-failover] ${fallback.provider} stream failed before output`,
+            );
           }
         }
 

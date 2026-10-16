@@ -12,6 +12,7 @@ import { createAvailableModel } from "@/lib/ai-gateway.server";
 import { MALAWI_LAW_SYSTEM_PROMPT } from "@/lib/malawi-law-prompt";
 import { MALAWI_LAW_DOMAINS } from "@/lib/malawi-law-links";
 import { searchLegalLibrary } from "@/lib/legal-library.server";
+import { reviewLegalQuestionWithAgents } from "@/lib/multi-agent.server";
 import { embedTexts } from "@/lib/embed.server";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -75,8 +76,14 @@ async function searchMalawiLaw(query: string) {
         contentRetrieved: true,
       }));
 
+    const agentReviews = await reviewLegalQuestionWithAgents(
+      query,
+      results.map((item) => `${item.title}\n${item.url}\n${item.content}`).join("\n\n"),
+    );
+
     return {
       results,
+      agent_reviews: agentReviews,
       source: "redbot_legal_library",
       note:
         results.length > 0
@@ -294,6 +301,9 @@ Do not answer these questions from model memory alone when legal research is ava
 7. If a page is an old version, secondary commentary, or does not contain the relevant provision, say so.
 8. Check last-checked and source-update dates for stored documents.
 
+### Independent agent reviews
+The legal-library search may include short reviews from multiple AI providers. Treat these reviews as advisory analysis only, not as legal authority. Agent agreement is not proof. Prefer the actual retrieved legal text and verified sources; disregard unsupported agent claims and explain material uncertainty.
+
 ### If verification fails
 If the search returns an error, no readable content, or insufficient evidence, tell the user that you could not verify the specific provision.
 
@@ -309,6 +319,15 @@ Do not treat general principles, such as fraud or freedom of religion, as proof 
 
 Explain what is known, identify what remains uncertain, and suggest which official source or legal practitioner could confirm it. Never claim that a legal search succeeded when it failed.
 
+### Response formatting — keep it clean and readable
+- Write in plain, natural paragraphs with short, descriptive headings when useful.
+- Do not use Markdown tables for ordinary answers. Explain comparisons as short bullet lists instead.
+- Do not put normal explanations, legal advice, citations, or summaries inside fenced code blocks.
+- Avoid blockquotes, callout panels, decorative boxes, and excessive nested lists.
+- Keep legal citations inline in the sentence or as a simple numbered/bulleted source list with clickable links.
+- Use numbered steps only for procedures; otherwise prefer concise paragraphs and simple bullets.
+- Optimize formatting for a narrow mobile screen. Make the answer easy to scan without visual clutter.
+
 ### Tool use
 - Use search_malawi_law for public legal documents stored in RedBot's library.
 - Use search_uploaded_documents for the user's own uploaded documents only.
@@ -323,8 +342,10 @@ Explain what is known, identify what remains uncertain, and suggest which offici
               messages as UIMessage[],
             ),
             tools,
-            // Keep tool/model round-trips bounded to reduce end-to-end latency.
-            stopWhen: stepCountIs(2),
+            // Allow a tool call, its result, and a follow-up generation to complete.
+            // A two-step limit can stop immediately after a second tool call, leaving
+            // the UI with an assistant message that contains no visible text.
+            stopWhen: stepCountIs(4),
             maxOutputTokens: 700,
           });
 

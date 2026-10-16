@@ -63,8 +63,9 @@ export async function reviewLegalQuestionWithAgents(
   question: string,
   sourceContext: string,
 ): Promise<Array<{ agent: string; review: string }>> {
-  const candidates = getConfiguredAgents().slice(0, 3);
-  if (candidates.length === 0) return [];
+  const candidates = getConfiguredAgents().slice(0, 2);
+  // Avoid duplicate calls and added latency when only one provider is configured.
+  if (candidates.length < 2) return [];
 
   const context = sourceContext.slice(0, 9000);
   const settled = await Promise.allSettled(
@@ -81,7 +82,7 @@ export async function reviewLegalQuestionWithAgents(
         ].join(" "),
         prompt: `Question: ${question}\n\nRetrieved legal-library context (may be incomplete or outdated):\n${context || "No matching legal source content was retrieved."}`,
         maxOutputTokens: 220,
-        abortSignal: AbortSignal.timeout(7000),
+        abortSignal: AbortSignal.timeout(5000),
       });
       return { agent: name, review: result.text.trim() };
     }),

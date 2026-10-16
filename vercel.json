@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/legal-library-sync",
+      "schedule": "15 3 * * *"
+    }
+  ]
+}

@@ -63,6 +63,9 @@ export async function reviewLegalQuestionWithAgents(
   question: string,
   sourceContext: string,
 ): Promise<Array<{ agent: string; review: string }>> {
+  // Reviews without retrieved source text would encourage unsupported legal claims.
+  if (!sourceContext.trim()) return [];
+
   const candidates = getConfiguredAgents().slice(0, 2);
   // Avoid duplicate calls and added latency when only one provider is configured.
   if (candidates.length < 2) return [];

@@ -314,6 +314,21 @@ function ChatWindow({
 
   const isBusy = status === "submitted" || status === "streaming";
 
+  // Keep the loading label visible through tool calls and stream setup.
+  // Hide it only after this turn has started producing visible assistant text.
+  const lastUserMessageIndex = messages.findLastIndex(
+    (message) => message.role === "user",
+  );
+  const hasCurrentAssistantText = messages
+    .slice(lastUserMessageIndex + 1)
+    .some(
+      (message) =>
+        message.role === "assistant" &&
+        message.parts.some(
+          (part) => part.type === "text" && part.text.trim().length > 0,
+        ),
+    );
+
   const openPdfPicker = () => {
     const fileInput = pdfInputRef.current;
 
@@ -383,7 +398,7 @@ function ChatWindow({
             ))
           )}
 
-          {status === "submitted" && (
+          {isBusy && !hasCurrentAssistantText && (
             <Message from="assistant">
               <MessageContent>
                 <Shimmer>Consulting the Constitution…</Shimmer>

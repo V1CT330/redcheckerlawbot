@@ -326,7 +326,6 @@ Explain what is known, identify what remains uncertain, and suggest which offici
             // Keep tool/model round-trips bounded to reduce end-to-end latency.
             stopWhen: stepCountIs(2),
             maxOutputTokens: 700,
-            maxOutputTokens: 900,
           });
 
           return result.toUIMessageStreamResponse({

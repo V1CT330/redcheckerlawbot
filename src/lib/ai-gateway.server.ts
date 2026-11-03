@@ -108,6 +108,44 @@ function getConfiguredModels(): ConfiguredModel[] {
  * request before streaming begins. Once a stream has started, do not replay
  * the prompt: doing so could duplicate or contradict text already delivered.
  */
+function withFirstChunkTimeout<T>(stream: ReadableStream<T>, timeoutMs = 15000) {
+  return new ReadableStream<T>({
+    async start(controller) {
+      const reader = stream.getReader();
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const first = await Promise.race([
+          reader.read(),
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error("AI provider first-event timeout")), timeoutMs);
+          }),
+        ]);
+        if (timer) clearTimeout(timer);
+        if (first.done) {
+          controller.close();
+          return;
+        }
+        controller.enqueue(first.value);
+        while (true) {
+          const next = await reader.read();
+          if (next.done) {
+            controller.close();
+            return;
+          }
+          controller.enqueue(next.value);
+        }
+      } catch (error) {
+        if (timer) clearTimeout(timer);
+        try { await reader.cancel(error); } catch { /* Stream already closed. */ }
+        controller.error(error);
+      } finally {
+        if (timer) clearTimeout(timer);
+        reader.releaseLock();
+      }
+    },
+  });
+}
+
 export function createAvailableModel() {
   const candidates = getConfiguredModels();
   const primary = candidates[0];
@@ -151,7 +189,8 @@ export function createAvailableModel() {
         let lastError: unknown;
 
         try {
-          return await doStream();
+          const result = await doStream();
+          return { ...result, stream: withFirstChunkTimeout(result.stream) };
         } catch (error) {
           lastError = error;
           console.error(`[ai-failover] ${primary.provider} stream request failed`);
@@ -160,7 +199,8 @@ export function createAvailableModel() {
         for (const fallback of fallbacks) {
           try {
             console.warn(`[ai-failover] trying ${fallback.provider} for streaming`);
-            return await fallback.model.doStream(params);
+            const result = await fallback.model.doStream(params);
+            return { ...result, stream: withFirstChunkTimeout(result.stream) };
           } catch (error) {
             lastError = error;
             console.error(`[ai-failover] ${fallback.provider} stream request failed`);

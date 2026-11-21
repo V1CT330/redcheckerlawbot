@@ -172,12 +172,44 @@ export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const { messages } = (await request.json()) as ChatRequestBody;
+        // Bound anonymous and authenticated request cost before invoking an AI model.
+        const declaredLength = Number(request.headers.get("content-length") ?? 0);
+        if (Number.isFinite(declaredLength) && declaredLength > 128_000) {
+          return new Response("Request body is too large", { status: 413 });
+        }
 
-        if (!Array.isArray(messages)) {
-          return new Response("Messages are required", {
-            status: 400,
-          });
+        let body: ChatRequestBody;
+        try {
+          const rawBody = await request.text();
+          if (new TextEncoder().encode(rawBody).byteLength > 128_000) {
+            return new Response("Request body is too large", { status: 413 });
+          }
+          body = JSON.parse(rawBody) as ChatRequestBody;
+        } catch {
+          return new Response("Invalid JSON body", { status: 400 });
+        }
+
+        const messages = body.messages;
+        if (!Array.isArray(messages) || messages.length === 0 || messages.length > 40) {
+          return new Response("Between 1 and 40 messages are required", { status: 400 });
+        }
+
+        let totalMessageChars = 0;
+        for (const message of messages) {
+          if (!message || typeof message !== "object" ||
+              !["user", "assistant"].includes((message as { role?: string }).role ?? "") ||
+              !Array.isArray((message as { parts?: unknown }).parts) ||
+              (message as { parts: unknown[] }).parts.length > 100) {
+            return new Response("Invalid message structure", { status: 400 });
+          }
+          const serializedLength = JSON.stringify(message).length;
+          if (serializedLength > 20_000) {
+            return new Response("A message is too large", { status: 413 });
+          }
+          totalMessageChars += serializedLength;
+          if (totalMessageChars > 60_000) {
+            return new Response("Conversation is too large", { status: 413 });
+          }
         }
 
         const authHeader = request.headers.get("authorization");

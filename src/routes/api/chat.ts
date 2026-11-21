@@ -184,7 +184,11 @@ export const Route = createFileRoute("/api/chat")({
           if (new TextEncoder().encode(rawBody).byteLength > 128_000) {
             return new Response("Request body is too large", { status: 413 });
           }
-          body = JSON.parse(rawBody) as ChatRequestBody;
+          const parsed: unknown = JSON.parse(rawBody);
+          if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+            return new Response("Invalid JSON body", { status: 400 });
+          }
+          body = parsed as ChatRequestBody;
         } catch {
           return new Response("Invalid JSON body", { status: 400 });
         }

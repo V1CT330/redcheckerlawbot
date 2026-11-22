@@ -35,6 +35,30 @@ type FirecrawlResponse = {
   } | FirecrawlResult[];
 };
 
+async function readLimitedBody(request: Request, maxBytes: number): Promise<string> {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const decoder = new TextDecoder();
+  let totalBytes = 0;
+  let body = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel();
+        throw new Error("REQUEST_BODY_TOO_LARGE");
+      }
+      body += decoder.decode(value, { stream: true });
+    }
+    return body + decoder.decode();
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 function isApprovedLegalSource(rawUrl: string): boolean {
   try {
     const url = new URL(rawUrl);
@@ -177,13 +201,12 @@ export const Route = createFileRoute("/api/chat")({
 
         let rawBody: string;
         try {
-          rawBody = await request.text();
-        } catch {
+          rawBody = await readLimitedBody(request, 1_000_000);
+        } catch (error) {
+          if (error instanceof Error && error.message === "REQUEST_BODY_TOO_LARGE") {
+            return new Response("Request is too large.", { status: 413 });
+          }
           return new Response("Invalid request body.", { status: 400 });
-        }
-
-        if (new TextEncoder().encode(rawBody).byteLength > 1_000_000) {
-          return new Response("Request is too large.", { status: 413 });
         }
 
         let parsedBody: unknown;

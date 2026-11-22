@@ -14,8 +14,6 @@ import { MALAWI_LAW_DOMAINS } from "@/lib/malawi-law-links";
 import { embedTexts } from "@/lib/embed.server";
 import type { Database } from "@/integrations/supabase/types";
 
-type ChatRequestBody = { messages?: unknown };
-
 type FirecrawlResult = {
   url?: string;
   title?: string;
@@ -460,8 +458,19 @@ You may explain what is known, identify what remains uncertain, and suggest what
 Always prefer verified source content over memory when the relevant fact can be researched.
           `.trim();
 
+          const firstChunkController = new AbortController();
+          const firstChunkTimeout = setTimeout(() => {
+            console.error("[chat] AI provider did not produce a response within 18 seconds");
+            firstChunkController.abort(new Error("The AI provider timed out before responding."));
+          }, 18_000);
+          const clearFirstChunkTimeout = () => clearTimeout(firstChunkTimeout);
+
           const result = streamText({
             model,
+            abortSignal: firstChunkController.signal,
+            onChunk: clearFirstChunkTimeout,
+            onFinish: clearFirstChunkTimeout,
+            onError: clearFirstChunkTimeout,
 
             system: systemPrompt,
 

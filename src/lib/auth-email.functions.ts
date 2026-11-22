@@ -1,5 +1,26 @@
+import { createHash } from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+
+async function consumeEmailRateLimit(
+  supabaseAdmin: { rpc: (...args: any[]) => Promise<{ data: boolean | null; error: { message: string } | null }> },
+  bucket: "signup-email" | "recovery-email",
+  email: string,
+): Promise<boolean> {
+  const identifierHash = createHash("sha256")
+    .update(email.trim().toLowerCase())
+    .digest("hex");
+
+  const { data, error } = await supabaseAdmin.rpc("consume_request_rate_limit", {
+    p_bucket: bucket,
+    p_identifier_hash: identifierHash,
+    p_limit: 3,
+    p_window_seconds: 3600,
+  });
+
+  if (error) throw new Error(`Email rate-limit check failed: ${error.message}`);
+  return data === true;
+}
 
 function codeEmail(title: string, intro: string, code: string) {
   return `<div style="font-family:Georgia,serif;max-width:480px;margin:auto;padding:24px;color:#222">
@@ -57,6 +78,17 @@ export const sendSignupCode = createServerFn({ method: "POST" })
       "@/integrations/supabase/client.server"
     );
 
+    let allowed: boolean;
+    try {
+      allowed = await consumeEmailRateLimit(supabaseAdmin, "signup-email", data.email);
+    } catch (error) {
+      console.error("Signup rate-limit check failed:", error);
+      return { ok: false as const, error: "Sign up is temporarily unavailable. Please try again." };
+    }
+    if (!allowed) {
+      return { ok: false as const, error: "Too many verification requests. Try again later." };
+    }
+
     let res = await supabaseAdmin.auth.admin.generateLink({
       type: "signup",
       email: data.email,
@@ -110,6 +142,14 @@ export const sendRecoveryCode = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
+
+    try {
+      const allowed = await consumeEmailRateLimit(supabaseAdmin, "recovery-email", data.email);
+      if (!allowed) return { ok: true as const };
+    } catch (error) {
+      console.error("Recovery rate-limit check failed:", error);
+      return { ok: true as const };
+    }
 
     const res = await supabaseAdmin.auth.admin.generateLink({
       type: "recovery",

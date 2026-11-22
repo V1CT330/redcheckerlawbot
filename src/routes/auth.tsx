@@ -49,8 +49,18 @@ function AuthPage() {
     let active = true;
 
     const checkSession = async () => {
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
       try {
-        const { data, error } = await supabase.auth.getUser();
+        const timeout = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(
+            () => reject(new Error("Session check timed out. Check your connection and try again.")),
+            8_000,
+          );
+        });
+        const { data, error } = await Promise.race([
+          supabase.auth.getUser(),
+          timeout,
+        ]);
 
         if (!active) return;
 
@@ -60,6 +70,7 @@ function AuthPage() {
       } catch (error) {
         console.error("Session check failed:", error);
       } finally {
+        if (timeoutId) clearTimeout(timeoutId);
         if (active) setCheckingSession(false);
       }
     };

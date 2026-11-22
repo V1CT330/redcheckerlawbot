@@ -2,8 +2,23 @@ import { createHash } from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+type RateLimitClient = {
+  rpc: (
+    functionName: "consume_request_rate_limit",
+    args: {
+      p_bucket: string;
+      p_identifier_hash: string;
+      p_limit: number;
+      p_window_seconds: number;
+    },
+  ) => PromiseLike<{
+    data: boolean | null;
+    error: { message: string } | null;
+  }>;
+};
+
 async function consumeEmailRateLimit(
-  supabaseAdmin: { rpc: (...args: any[]) => Promise<{ data: boolean | null; error: { message: string } | null }> },
+  supabaseAdmin: RateLimitClient,
   bucket: "signup-email" | "recovery-email",
   email: string,
 ): Promise<boolean> {

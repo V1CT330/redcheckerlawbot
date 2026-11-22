@@ -223,6 +223,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      consume_request_rate_limit: {
+        Args: {
+          p_bucket: string
+          p_identifier_hash: string
+          p_limit: number
+          p_window_seconds: number
+        }
+        Returns: boolean
+      }
       match_document_chunks: {
         Args: { match_count?: number; query_embedding: string }
         Returns: {

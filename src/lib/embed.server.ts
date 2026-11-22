@@ -11,49 +11,62 @@ async function requestEmbeddings(
   headers: Record<string, string>,
   inputs: string[],
 ): Promise<number[][]> {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...headers,
-    },
-    body: JSON.stringify({
-      model: EMBEDDING_MODEL,
-      input: inputs,
-      dimensions: EMBEDDING_DIMENSIONS,
-    }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12_000);
 
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(
-      `Embeddings failed (${response.status}): ${body.slice(0, 300)}`,
-    );
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...headers,
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: EMBEDDING_MODEL,
+        input: inputs,
+        dimensions: EMBEDDING_DIMENSIONS,
+      }),
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(
+        `Embeddings failed (${response.status}): ${body.slice(0, 300)}`,
+      );
+    }
+
+    const json = (await response.json()) as EmbeddingResponse;
+
+    if (!Array.isArray(json.data) || json.data.length !== inputs.length) {
+      throw new Error("Embedding service returned incomplete results.");
+    }
+
+    const ordered = json.data
+      .slice()
+      .sort((a, b) => a.index - b.index)
+      .map((item) => item.embedding);
+
+    if (
+      ordered.some(
+        (vector) =>
+          !Array.isArray(vector) ||
+          vector.length !== EMBEDDING_DIMENSIONS ||
+          vector.some((value) => !Number.isFinite(value)),
+      )
+    ) {
+      throw new Error("Invalid embedding dimensions returned by the provider.");
+    }
+
+    return ordered;
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Embedding provider timed out after 12 seconds.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const json = (await response.json()) as EmbeddingResponse;
-
-  if (!Array.isArray(json.data) || json.data.length !== inputs.length) {
-    throw new Error("Embedding service returned incomplete results.");
-  }
-
-  const ordered = json.data
-    .slice()
-    .sort((a, b) => a.index - b.index)
-    .map((item) => item.embedding);
-
-  if (
-    ordered.some(
-      (vector) =>
-        !Array.isArray(vector) ||
-        vector.length !== EMBEDDING_DIMENSIONS ||
-        vector.some((value) => !Number.isFinite(value)),
-    )
-  ) {
-    throw new Error("Invalid embedding dimensions returned by the provider.");
-  }
-
-  return ordered;
 }
 
 export async function embedTexts(inputs: string[]): Promise<number[][]> {

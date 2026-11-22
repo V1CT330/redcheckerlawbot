@@ -172,21 +172,96 @@ export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const { messages } = (await request.json()) as ChatRequestBody;
-
-        if (!Array.isArray(messages)) {
-          return new Response("Messages are required", {
-            status: 400,
-          });
+        const declaredLength = Number(request.headers.get("content-length") ?? 0);
+        if (declaredLength > 1_000_000) {
+          return new Response("Request is too large.", { status: 413 });
         }
 
-        const authHeader = request.headers.get("authorization");
+        let rawBody: string;
+        try {
+          rawBody = await request.text();
+        } catch {
+          return new Response("Invalid request body.", { status: 400 });
+        }
 
+        if (new TextEncoder().encode(rawBody).byteLength > 1_000_000) {
+          return new Response("Request is too large.", { status: 413 });
+        }
+
+        let parsedBody: unknown;
+        try {
+          parsedBody = JSON.parse(rawBody);
+        } catch {
+          return new Response("Invalid JSON body.", { status: 400 });
+        }
+
+        const bodySchema = z.object({
+          messages: z.array(z.unknown()).min(1).max(80),
+        });
+        const parsed = bodySchema.safeParse(parsedBody);
+        if (!parsed.success) {
+          return new Response("A valid messages array is required.", { status: 400 });
+        }
+        const messages = parsed.data.messages;
+
+        const authHeader = request.headers.get("authorization");
         const userToken = authHeader?.startsWith("Bearer ")
-          ? authHeader.slice(7)
-          : null;
+          ? authHeader.slice(7).trim()
+          : "";
+
+        if (!userToken || userToken.split(".").length !== 3) {
+          return new Response("Authentication required.", { status: 401 });
+        }
+
+        const supabaseUrl = process.env.SUPABASE_URL;
+        const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
+        if (!supabaseUrl || !publishableKey) {
+          console.error("[chat] Supabase auth configuration is missing");
+          return new Response("Chat authentication is unavailable.", { status: 503 });
+        }
+
+        const authClient = createClient<Database>(supabaseUrl, publishableKey, {
+          global: {
+            headers: { Authorization: `Bearer ${userToken}` },
+            fetch: (input, init) => {
+              const headers = new Headers(init?.headers);
+              headers.set("apikey", publishableKey);
+              return fetch(input, { ...init, headers });
+            },
+          },
+          auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+        });
+
+        const { data: claimsData, error: claimsError } =
+          await authClient.auth.getClaims(userToken);
+        const userId = claimsData?.claims?.sub;
+        if (claimsError || typeof userId !== "string" || !userId) {
+          return new Response("Invalid or expired session.", { status: 401 });
+        }
 
         try {
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { data: allowed, error: rateError } = await supabaseAdmin.rpc(
+            "consume_request_rate_limit",
+            {
+              p_bucket: "chat",
+              p_identifier_hash: userId,
+              p_limit: 15,
+              p_window_seconds: 60,
+            },
+          );
+
+          if (rateError) {
+            console.error("[chat] Rate-limit check failed:", rateError.message);
+            return new Response("Chat is temporarily unavailable.", { status: 503 });
+          }
+          if (!allowed) {
+            return new Response("Too many messages. Please wait a minute and try again.", {
+              status: 429,
+              headers: { "Retry-After": "60" },
+            });
+          }
+
           const { model, provider } = createAvailableModel();
 
           console.info(`[chat] using ${provider} provider`);

@@ -1,8 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { Database } from "@/integrations/supabase/types";
 
 export const createShare = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -22,7 +20,11 @@ export const createShare = createServerFn({ method: "POST" })
       .order("created_at", { ascending: true });
     if (mErr) throw new Error(mErr.message);
 
-    const { data: share, error: sErr } = await context.supabase
+    // The owner and messages were verified with the caller's RLS-scoped client.
+    // Use the server-only admin client for the insert because public SELECT access
+    // to shared_chats is intentionally disabled.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: share, error: sErr } = await supabaseAdmin
       .from("shared_chats")
       .insert({
         thread_id: data.threadId,
@@ -39,12 +41,8 @@ export const createShare = createServerFn({ method: "POST" })
 export const getSharedChat = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => z.object({ shareId: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
-    const supabase = createClient<Database>(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_PUBLISHABLE_KEY!,
-      { auth: { storage: undefined, persistSession: false, autoRefreshToken: false } },
-    );
-    const { data: row, error } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
       .from("shared_chats")
       .select("id,title,messages,created_at")
       .eq("id", data.shareId)
@@ -63,12 +61,8 @@ export const forkSharedChat = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ shareId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const supabase = createClient<Database>(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_PUBLISHABLE_KEY!,
-      { auth: { storage: undefined, persistSession: false, autoRefreshToken: false } },
-    );
-    const { data: share, error } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: share, error } = await supabaseAdmin
       .from("shared_chats")
       .select("title,messages")
       .eq("id", data.shareId)

@@ -14,15 +14,21 @@ async function consumeEmailRateLimit(
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
 
-  const { data, error } = await supabaseAdmin.rpc("consume_request_rate_limit", {
-    p_bucket: bucket,
-    p_identifier_hash: identifierHash,
-    p_limit: 3,
-    p_window_seconds: 3600,
-  });
-
-  if (error) throw new Error(`Email rate-limit check failed: ${error.message}`);
-  return data === true;
+  try {
+    const { data, error } = await supabaseAdmin.rpc("consume_request_rate_limit", {
+      p_bucket: bucket,
+      p_identifier_hash: identifierHash,
+      p_limit: 3,
+      p_window_seconds: 3600,
+    });
+    if (error) throw error;
+    return data === true;
+  } catch (error) {
+    // Temporary per-instance protection until the shared DB migration is applied.
+    console.error("Shared email rate limiter unavailable; using local fallback:", error);
+    const { consumeLocalRateLimit } = await import("@/lib/rate-limit.server");
+    return consumeLocalRateLimit(bucket, identifierHash, 3, 3600);
+  }
 }
 
 function codeEmail(title: string, intro: string, code: string) {

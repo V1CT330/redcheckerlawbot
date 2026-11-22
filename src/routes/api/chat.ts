@@ -261,21 +261,28 @@ export const Route = createFileRoute("/api/chat")({
         }
 
         try {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const { data: allowed, error: rateError } = await supabaseAdmin.rpc(
-            "consume_request_rate_limit",
-            {
-              p_bucket: "chat",
-              p_identifier_hash: userId,
-              p_limit: 15,
-              p_window_seconds: 60,
-            },
-          );
-
-          if (rateError) {
-            console.error("[chat] Rate-limit check failed:", rateError.message);
-            return new Response("Chat is temporarily unavailable.", { status: 503 });
+          let allowed: boolean;
+          try {
+            const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+            const { data, error } = await supabaseAdmin.rpc(
+              "consume_request_rate_limit",
+              {
+                p_bucket: "chat",
+                p_identifier_hash: userId,
+                p_limit: 15,
+                p_window_seconds: 60,
+              },
+            );
+            if (error) throw error;
+            allowed = data === true;
+          } catch (error) {
+            // Keep chat available if the production database migration is pending.
+            // This fallback is per runtime instance; the database RPC is stronger.
+            console.error("[chat] Shared rate limiter unavailable; using local fallback:", error);
+            const { consumeLocalRateLimit } = await import("@/lib/rate-limit.server");
+            allowed = consumeLocalRateLimit("chat", userId, 15, 60);
           }
+
           if (!allowed) {
             return new Response("Too many messages. Please wait a minute and try again.", {
               status: 429,

@@ -1,30 +1,18 @@
-import { createHash } from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-
-type RateLimitClient = {
-  rpc: (
-    functionName: "consume_request_rate_limit",
-    args: {
-      p_bucket: string;
-      p_identifier_hash: string;
-      p_limit: number;
-      p_window_seconds: number;
-    },
-  ) => PromiseLike<{
-    data: boolean | null;
-    error: { message: string } | null;
-  }>;
-};
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
 async function consumeEmailRateLimit(
-  supabaseAdmin: RateLimitClient,
+  supabaseAdmin: SupabaseClient<Database>,
   bucket: "signup-email" | "recovery-email",
   email: string,
 ): Promise<boolean> {
-  const identifierHash = createHash("sha256")
-    .update(email.trim().toLowerCase())
-    .digest("hex");
+  const emailBytes = new TextEncoder().encode(email.trim().toLowerCase());
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", emailBytes);
+  const identifierHash = Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 
   const { data, error } = await supabaseAdmin.rpc("consume_request_rate_limit", {
     p_bucket: bucket,
